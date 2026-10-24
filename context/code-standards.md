@@ -20,19 +20,20 @@ src/intake/         form → ExtractedBill                               Pranil
 src/agents/         intake agent, investigator agent (all model calls) Pranil
 src/match/          deterministic matcher                              Pranil
 src/integrations/   crs/, creao/, x402 clients, called only from actions  Pranil
-convex/intake.ts    extractBill action                                  Pranil
-convex/match.ts     commitMatch mutation, calls matchBill               Pranil
-convex/crs.ts       verifyVendor action + commitCrs mutation            Pranil
-convex/payments.ts  settleX402 action, called by processBill            Pranil
+convex/intake/      extractBill action                                  Pranil
+convex/match/       commitMatch mutation, calls matchBill               Pranil
+convex/crs/         verifyVendor action + commitCrs mutation            Pranil
+convex/payments/    settleX402 action, called by processBill            Pranil
 fixtures/bills/     sample PDFs/images                                 Pranil
 README.md                                                              Pranil
 src/engine/         deterministic checks, decide(), explain()          Anmol
 src/audit/          pure hash helper                                    Anmol
 convex/schema.ts    tables                                              Anmol
-convex/bills.ts     listBills, getBill, createBill, humanResume, replay Anmol
-convex/pipeline.ts  processBill action                                  Anmol
-convex/engine.ts    commitPolicy mutation                               Anmol
-convex/audit.ts     append + verifyAudit query                          Anmol
+convex/bills/       listBills, getBill, createBill, humanResume, reset Anmol
+convex/pipeline/    processBill and replayOpening actions               Anmol
+convex/engine/      commitPolicy mutation                               Anmol
+convex/audit/       verifyAudit query                                   Anmol
+convex/lib/         ledger and record helpers                           Anmol
 convex/seed.ts      seed mutation                                       Anmol
 tests/              golden + unit tests for engine/pipeline            Anmol (Pranil owns tests/match/, tests/intake/)
 src/app/page.tsx, layout.tsx, globals.css                              Piyush
