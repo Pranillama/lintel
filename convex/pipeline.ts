@@ -1,7 +1,15 @@
-export function processBill(): Promise<void> {
-  throw new Error("Not implemented");
-}
+import { action } from "./_generated/server";
 
-export function replayOpening(): Promise<void> {
-  throw new Error("Not implemented");
-}
+export const processBill = action({
+  args: {},
+  handler: async () => {
+    throw new Error("Not implemented");
+  },
+});
+
+export const replayOpening = action({
+  args: {},
+  handler: async () => {
+    throw new Error("Not implemented");
+  },
+});

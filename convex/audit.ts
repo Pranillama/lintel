@@ -1,3 +1,8 @@
-export function verifyAudit(): Promise<void> {
-  throw new Error("Not implemented");
-}
+import { query } from "./_generated/server";
+
+export const verifyAudit = query({
+  args: {},
+  handler: async () => {
+    throw new Error("Not implemented");
+  },
+});

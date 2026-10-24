@@ -1,7 +1,15 @@
-export function verify(): Promise<void> {
-  throw new Error("Not implemented");
-}
+import { action, mutation } from "./_generated/server";
 
-export function commitCrs(): Promise<void> {
-  throw new Error("Not implemented");
-}
+export const verify = action({
+  args: {},
+  handler: async () => {
+    throw new Error("Not implemented");
+  },
+});
+
+export const commitCrs = mutation({
+  args: {},
+  handler: async () => {
+    throw new Error("Not implemented");
+  },
+});
