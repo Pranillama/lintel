@@ -1,11 +1,22 @@
-export function listBills(): Promise<void> {
-  throw new Error("Not implemented");
-}
+import { mutation, query } from "./_generated/server";
 
-export function getPortfolio(): Promise<void> {
-  throw new Error("Not implemented");
-}
+export const listBills = query({
+  args: {},
+  handler: async () => {
+    throw new Error("Not implemented");
+  },
+});
 
-export function humanResume(): Promise<void> {
-  throw new Error("Not implemented");
-}
+export const getPortfolio = query({
+  args: {},
+  handler: async () => {
+    throw new Error("Not implemented");
+  },
+});
+
+export const humanResume = mutation({
+  args: {},
+  handler: async () => {
+    throw new Error("Not implemented");
+  },
+});

@@ -1,7 +1,15 @@
-export function extractBill(): Promise<void> {
-  throw new Error("Not implemented");
-}
+import { action, mutation } from "./_generated/server";
 
-export function commitExtraction(): Promise<void> {
-  throw new Error("Not implemented");
-}
+export const extractBill = action({
+  args: {},
+  handler: async () => {
+    throw new Error("Not implemented");
+  },
+});
+
+export const commitExtraction = mutation({
+  args: {},
+  handler: async () => {
+    throw new Error("Not implemented");
+  },
+});

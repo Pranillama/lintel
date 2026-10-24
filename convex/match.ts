@@ -1,3 +1,8 @@
-export function commitMatch(): Promise<void> {
-  throw new Error("Not implemented");
-}
+import { mutation } from "./_generated/server";
+
+export const commitMatch = mutation({
+  args: {},
+  handler: async () => {
+    throw new Error("Not implemented");
+  },
+});
