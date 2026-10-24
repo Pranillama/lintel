@@ -41,7 +41,7 @@ Claude reads a PDF or image and returns an `ExtractedBill` with per-field confid
 
 - SDK: `@anthropic-ai/sdk`, `client.messages.parse()` with `output_config: { format: zodOutputFormat(Schema) }` (`import { zodOutputFormat } from "@anthropic-ai/sdk/helpers/zod"`). `parsed_output` can be null: treat as failure.
 - Content: PDF as `{ type: "document", source: { type: "base64", media_type: "application/pdf", data } }`; images as `{ type: "image", source: { type: "base64", media_type, data } }`; document block **before** the instruction text.
-- Model `process.env.LINTEL_EXTRACT_MODEL ?? "claude-opus-5-5"`, `output_config.effort: "low"` for speed (Opus 5.5 cannot disable thinking; effort is the knob). `max_tokens` ~4000. Request option `{ timeout: POLICY.EXTRACTION_TIMEOUT_MS, maxRetries: 0 }` (ms in the TS SDK).
+- Model `process.env.LINTEL_EXTRACT_MODEL ?? "claude-haiku-5-5"`, `output_config.effort: "low"` for speed (Opus 5.5 cannot disable thinking; effort is the knob). `max_tokens` ~4000. Request option `{ timeout: POLICY.EXTRACTION_TIMEOUT_MS, maxRetries: 0 }` (ms in the TS SDK).
 - Check `stop_reason` before reading output; `"refusal"` → failure.
 - Prompt rules: extract only what is printed; if a field is absent return null with confidence 0; never compute or infer totals; quote the snippet verbatim; usage unit must be one of the enum or null. **Do not ask for or accept any status, decision, or recommendation.**
 - Never rejects: on timeout/error/refusal return an `ExtractedBill` with all values null (or whatever parsed), `extraction_error` set, `source: "DOCUMENT"`. The engine turns that into HELD `EXTRACTION_FAILED`.
@@ -94,8 +94,8 @@ Only for CLEARED contractor bills, only after CRS is live. Base Sepolia testnet,
 
 ## Checklist (update only this list, in the same commit as the work)
 
-- [ ] `normalizeForm` real + tests (unblocks Anmol's FORM/FEED path)
-- [ ] `matchBill` real + tests for every demo input (post in #pranil-update when on main)
+- [x] `normalizeForm` real + tests (unblocks Anmol's FORM/FEED path). Landed: trimmed strings, empty fields null at confidence 0, provided values at 1.00 with source FORM or FEED, amounts and line items through `roundUsd`.
+- [x] `matchBill` real + tests for every demo input (post in #pranil-update when on main). Landed: every demo input hits the §6 property, method, and confidence; alias is HUMAN_ALIAS 1.00; unknown vendor is `vendor_id` null; an Ohio address is UNRESOLVED.
 - [ ] CRS: asked in #spons-crs-credit-api for creds + test identities
 - [ ] CREAO: agent created on agent.creao.ai (input field `prompt`), API key in `.env.local`, one manual run returns parseable JSON
 - [ ] Investigator: CREAO client (start + poll + parse) behind `investigate()`
