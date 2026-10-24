@@ -231,6 +231,93 @@ describe("investigate", () => {
     vi.restoreAllMocks();
   });
 
+  it("uses completed result.text when it is a brief, otherwise the JSON artifact", async () => {
+    enableCreao();
+    const artifactUrl = "https://agent.creao.ai/api/v1/runs/run-art/artifacts/brief.json";
+    const metadata =
+      '{"prompt":"...","top_reason":"USAGE_SPIKE","draft_kind":"WORK_ORDER","suggested_property_id":"null"}';
+    const artifactBrief = {
+      summary: "Usage is 160 CCF against a 42 CCF baseline.",
+      findings: ["Current usage is 160 CCF.", "The prior bill was 42 CCF."],
+      draft: {
+        kind: "WORK_ORDER" as const,
+        to: "Maintenance",
+        subject: "Check the meter",
+        body: "Usage is far above the last bill.",
+        suggested_property_id: null,
+      },
+    };
+
+    fetchMock
+      .mockResolvedValueOnce(jsonResponse({ id: "run-text", status: "pending" }))
+      .mockResolvedValueOnce(
+        jsonResponse({
+          status: "completed",
+          result: {
+            text: JSON.stringify(modelBrief),
+            artifacts: [{ id: "workspaces/run/brief.json", type: "application/json", url: artifactUrl }],
+          },
+        }),
+      );
+
+    const fromText = await investigate(contextFor(["USAGE_SPIKE"]));
+
+    expect(fromText).toMatchObject({
+      status: "DONE",
+      provider: "CREAO",
+      summary: modelBrief.summary,
+      findings: modelBrief.findings,
+      creao_run_id: "run-text",
+      draft: { kind: "WORK_ORDER", subject: modelBrief.draft.subject, body: modelBrief.draft.body },
+    });
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+    expect(fetchMock.mock.calls.map((call) => String(call[0]))).not.toContain(artifactUrl);
+
+    fetchMock.mockReset();
+    fetchMock
+      .mockResolvedValueOnce(jsonResponse({ id: "run-art", status: "pending" }))
+      .mockResolvedValueOnce(
+        jsonResponse({
+          status: "completed",
+          result: {
+            text: metadata,
+            artifacts: [
+              {
+                id: "workspaces/run/report.pdf",
+                type: "application/pdf",
+                url: "https://agent.creao.ai/api/v1/runs/run-art/artifacts/report.pdf",
+              },
+              { id: "workspaces/run/brief.json", type: "application/json", url: artifactUrl },
+            ],
+          },
+        }),
+      )
+      .mockResolvedValueOnce(jsonResponse(artifactBrief));
+
+    const fromArtifact = await investigate(contextFor(["USAGE_SPIKE"]));
+
+    expect(fromArtifact).toMatchObject({
+      status: "DONE",
+      provider: "CREAO",
+      summary: artifactBrief.summary,
+      findings: artifactBrief.findings,
+      creao_run_id: "run-art",
+      error: null,
+      draft: {
+        kind: "WORK_ORDER",
+        to: "Maintenance, Shattuck Student Living",
+        subject: artifactBrief.draft.subject,
+        body: artifactBrief.draft.body,
+      },
+    });
+    expect(fetchMock).toHaveBeenCalledTimes(3);
+    expect(fetchMock.mock.calls[2]?.[0]).toBe(artifactUrl);
+    expect(fetchMock.mock.calls[2]?.[1]).toMatchObject({
+      method: "GET",
+      headers: { Authorization: "Bearer capi_test" },
+    });
+  });
+
   it("returns a CREAO brief and corrects the draft kind", async () => {
     enableCreao();
     fetchMock
