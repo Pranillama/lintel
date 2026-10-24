@@ -4,7 +4,7 @@ You own the part that decides money and records it. Everything here is determini
 
 **Read first:** `context/master-spec.md` §4 to §6 (architecture, rules, golden outcomes), `context/code-standards.md`, `src/types/bill.ts`, `src/seed/`.
 
-**Your folders:** `src/engine/`, `src/audit/`, `convex/schema.ts`, `convex/bills.ts`, `convex/pipeline.ts`, `convex/engine.ts`, `convex/audit.ts`, `convex/seed.ts`, `tests/` (except `tests/match/`, `tests/intake/`). The browser never hits a Next route for bill data. It calls these Convex functions.
+**Your folders:** `src/engine/`, `src/audit/`, `convex/schema.ts`, `convex/seed.ts`, `convex/bills/`, `convex/pipeline/`, `convex/engine/`, `convex/audit/`, `convex/lib/`, `tests/` (except `tests/match/`, `tests/intake/`). The browser never hits a Next route for bill data. It calls these Convex functions.
 
 **You consume (from Pranil):** `normalizeForm` (`src/intake/normalizeForm.ts`), `extractDocument` (`src/agents/intake/extractDocument.ts`), `matchBill` (`src/match/matchBill.ts`), `verifyVendor` (`src/integrations/crs/verifyVendor.ts`), `investigate` (`src/agents/investigator/investigate.ts`). Stubs exist from the scaffold; call them by these paths and signatures.
 
@@ -40,7 +40,7 @@ Details that matter:
 - `append.ts`: `appendEvents(db, billId, drafts: Omit<AuditEvent, "id"|"seq"|"prev_hash"|"hash">[]): AuditEvent[]`: reads the last event for the bill, assigns seq, chains hashes, inserts. Same transaction as the bill write.
 - Insert-only. `wipeLiveData` is the only delete.
 
-## 4. Pipeline (`convex/pipeline.ts`), the orchestrator
+## 4. Pipeline (`convex/pipeline/process.ts`), the orchestrator
 
 `processBill` is a Convex **action**. It follows master-spec §4. It calls mutations for every write and calls Pranil's actions for HTTP. It does not set a status itself.
 
@@ -52,7 +52,7 @@ Details that matter:
 6. Audit rows, in this order, each inside the mutation that learned the fact: `INTAKE` (actor HUMAN_INPUT / SYSTEM_FEED / AI_EXTRACTION), `EXTRACT_FIELDS`, `RESOLVE_VENDOR`, `RESOLVE_PROPERTY` (actor `HUMAN_ALIAS` when method is HUMAN_ALIAS, else DETERMINISTIC_RULE), one `CHECK` per check (DETERMINISTIC_RULE, decision PASS/HALT/BLOCK/INFO for SKIP), `VERIFY_VENDOR` (CRS_SANDBOX) if run, `DECISION`, `ROUTE_PAYMENT` (PAYMENT_ROUTER, EXECUTE) if CLEARED.
 7. If HELD/BLOCKED, the mutation inserts investigation `PENDING` and the action schedules `investigate`. Return the `BillView`. FORM/FEED target is under 2 seconds.
 - `investigate`: build `InvestigationContext` (bill, property, vendor, history same property+vendor max 6, related live bills max 6, `POLICY_TEXT`), set RUNNING + audit `INVESTIGATION_STARTED`, `await investigate(ctx)`, save brief, audit `INVESTIGATION_COMPLETED`/`FAILED` (actor AI_INVESTIGATOR, rationale = summary or error, data = provider, run id). Never touches bill status.
-- `humanResume` in `convex/bills.ts`:
+- `humanResume` in `convex/bills/resume.ts`:
   - assign: only HELD bills whose reasons include NEEDS_PROPERTY_MATCH. Audit `HUMAN_ASSIGN_PROPERTY` (HUMAN_OPERATOR) and, if `match.address_key`, insert alias + `ALIAS_STORED`. New match = method HUMAN_ASSIGNED, confidence 1.00. Re-run `decide` (ledger excludes self), write new CHECK + DECISION rows, update status, `resolved_by = "HUMAN"`, payment if CLEARED.
   - approve: only HELD with **no** priority-2 reasons (fields and property must be trusted first). Status CLEARED, `resolved_by HUMAN`, payment from the vendor's default rail. Audit `HUMAN_APPROVE` with the approver role and note.
   - reject: HELD → REJECTED. Audit `HUMAN_REJECT`.
@@ -88,13 +88,13 @@ There is no `src/app/api`. Piyush uses the Convex client.
 
 ## Checklist (update only this list, in the same commit as the work)
 
-- [ ] Engine: `checkExtraction`, `checkMatch`, `checkLineSum` + unit tests
-- [ ] Engine: exact + fuzzy duplicate checks (self excluded, 20-day window) + tests
-- [ ] Engine: spike check with `SpikeData` (amount + usage) + tests
-- [ ] Engine: vendor trust + two-track policy + approver ladder
-- [ ] Engine: `decide()` + `explain()`; golden tests green for all §6 rows (hand-built matches)
-- [ ] Audit: append + hash chain + `verifyAudit` + tests
-- [ ] Convex: schema, idempotent seed, `listBills`, `getBill`, `verifyAudit`
+- [x] Engine: `checkExtraction`, `checkMatch`, `checkLineSum` + unit tests
+- [x] Engine: exact + fuzzy duplicate checks (self excluded, 20-day window) + tests
+- [x] Engine: spike check with `SpikeData` (amount + usage) + tests
+- [x] Engine: vendor trust + two-track policy + approver ladder
+- [x] Engine: `decide()` + `explain()`; golden tests green for all §6 rows (hand-built matches)
+- [x] Audit: append + hash chain + `verifyAudit` + tests
+- [x] Convex: schema, idempotent seed, `listBills`, `getBill`, `verifyAudit`
 - [ ] Pipeline: `processBill` action (FORM/FEED path) + audit rows; pipeline test for replay totals
 - [ ] Functions: `listBills`, `getPortfolio`, `processBill`, `replayOpening`, `resetDemo` (unblocks Piyush; post in #anmol-update)
 - [ ] `humanResume`: assign (alias + re-evaluate), approve, reject, send-draft + tests

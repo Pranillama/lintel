@@ -8,14 +8,19 @@
  * @module
  */
 
-import type * as audit from "../audit.js";
-import type * as bills from "../bills.js";
-import type * as crs from "../crs.js";
-import type * as engine from "../engine.js";
-import type * as intake from "../intake.js";
-import type * as match from "../match.js";
-import type * as payments from "../payments.js";
-import type * as pipeline from "../pipeline.js";
+import type * as audit_verify from "../audit/verify.js";
+import type * as bills_create from "../bills/create.js";
+import type * as bills_queries from "../bills/queries.js";
+import type * as bills_reset from "../bills/reset.js";
+import type * as bills_resume from "../bills/resume.js";
+import type * as crs_vendor from "../crs/vendor.js";
+import type * as engine_policy from "../engine/policy.js";
+import type * as intake_extract from "../intake/extract.js";
+import type * as lib_records from "../lib/records.js";
+import type * as match_commit from "../match/commit.js";
+import type * as payments_settle from "../payments/settle.js";
+import type * as pipeline_investigate from "../pipeline/investigate.js";
+import type * as pipeline_process from "../pipeline/process.js";
 import type * as seed from "../seed.js";
 
 import type {
@@ -25,14 +30,19 @@ import type {
 } from "convex/server";
 
 declare const fullApi: ApiFromModules<{
-  audit: typeof audit;
-  bills: typeof bills;
-  crs: typeof crs;
-  engine: typeof engine;
-  intake: typeof intake;
-  match: typeof match;
-  payments: typeof payments;
-  pipeline: typeof pipeline;
+  "audit/verify": typeof audit_verify;
+  "bills/create": typeof bills_create;
+  "bills/queries": typeof bills_queries;
+  "bills/reset": typeof bills_reset;
+  "bills/resume": typeof bills_resume;
+  "crs/vendor": typeof crs_vendor;
+  "engine/policy": typeof engine_policy;
+  "intake/extract": typeof intake_extract;
+  "lib/records": typeof lib_records;
+  "match/commit": typeof match_commit;
+  "payments/settle": typeof payments_settle;
+  "pipeline/investigate": typeof pipeline_investigate;
+  "pipeline/process": typeof pipeline_process;
   seed: typeof seed;
 }>;
 
