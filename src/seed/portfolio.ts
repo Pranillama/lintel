@@ -136,8 +136,8 @@ export const VENDORS: Vendor[] = [
     kind: "UNVERIFIED_CONTRACTOR",
     utility_type: null,
     default_rail: "ACH",
-    // Set to an official CRS sandbox test identity once credentials arrive. Never invent one.
-    crs_identity_ref: null,
+    // Official CRS sandbox persona P08 (PRIYA VENKATESAN). Not a real consumer.
+    crs_identity_ref: "P08",
   },
 ];
 
