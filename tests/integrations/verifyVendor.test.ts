@@ -24,6 +24,30 @@ const p08Body = {
   Liens: { Lien: { Type: "State Tax Lien", Amount: "7450.00" } },
 };
 
+/** Live `/pp/fcrablj/data` shape: records nested under DetailedBLJReport.Results. */
+const liveP08Blj = {
+  DetailedBLJReport: {
+    JudgmentsFound: 1,
+    BankruptciesFound: 0,
+    LiensFound: 1,
+    Results: {
+      Judgments: {
+        JudgmentRecord: {
+          JudgmentType: "Civil Judgment",
+          TotalJudgmentAmount: 12300,
+          FilingType: "Judgment",
+        },
+      },
+      Liens: {
+        LienRecord: {
+          TotalLienAmount: 7450,
+          FilingType: "Lien",
+        },
+      },
+    },
+  },
+};
+
 const p19Body = {
   requestId: "req-body-p19",
   risk: { score: 9 },
@@ -169,6 +193,26 @@ describe("verifyVendor", () => {
       detail: "1 civil judgment ($12,300) + 1 state tax lien ($7,450)",
     });
     expect(JSON.stringify(result)).not.toContain("88");
+  });
+
+  it("unwraps a live DetailedBLJReport Results payload into a civil judgment and a lien", async () => {
+    process.env.LINTEL_CRS_ENABLED = "true";
+    process.env.CRS_API_KEY = "test-key";
+    const fetchMock = vi.fn(async () => jsonResponse(liveP08Blj, 200, { RequestID: "req-live-p08" }));
+    vi.stubGlobal("fetch", fetchMock);
+    const verifyVendor = await loadVerifyVendor();
+
+    const result = await verifyVendor(contractor({ crs_identity_ref: "P08" }), sampleBill());
+
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    expect(sentRequest(fetchMock).url).toBe("https://api-sandbox.stitchcredit.com/api/pp/fcrablj/data");
+    expect(result).toEqual({
+      outcome: "FLAGGED",
+      request_id: "req-live-p08",
+      identity_ref: "P08",
+      signals: ["civil judgment ($12,300)", "lien ($7,450)"],
+      detail: "1 civil judgment ($12,300) + 1 lien ($7,450)",
+    });
   });
 
   it("passes a clean P19-shaped report and reads requestId from the body", async () => {

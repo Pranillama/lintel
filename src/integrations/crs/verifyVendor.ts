@@ -36,7 +36,8 @@ const filingSchema = z.object({
 
 /**
  * `/pp/fcrablj/data` is PitchPoint XML turned into JSON: PascalCase keys, and a
- * single record arrives as an object rather than a one-element array.
+ * single record arrives as an object rather than a one-element array. Live
+ * reports nest those records under `DetailedBLJReport.Results`.
  */
 const bljSchema = z.preprocess(normalizeBlj, z.object({
   requestId: z.string().nullable(),
@@ -312,10 +313,40 @@ function normalizeFiling(value: unknown): Filing {
   const record = asRecord(value);
   if (!record) return { type: null, amount: null, chapter: null };
   return {
-    type: stringOrNull(pick(record, "type", "Type", "description", "Description", "filingType", "FilingType")),
-    amount: numberOrNull(pick(record, "amount", "Amount", "judgmentAmount", "JudgmentAmount", "lienAmount", "LienAmount")),
+    type: stringOrNull(pick(
+      record,
+      "type",
+      "Type",
+      "description",
+      "Description",
+      "judgmentType",
+      "JudgmentType",
+      "filingType",
+      "FilingType",
+    )),
+    amount: numberOrNull(pick(
+      record,
+      "amount",
+      "Amount",
+      "judgmentAmount",
+      "JudgmentAmount",
+      "lienAmount",
+      "LienAmount",
+      "totalJudgmentAmount",
+      "TotalJudgmentAmount",
+      "totalLienAmount",
+      "TotalLienAmount",
+    )),
     chapter: stringOrNull(pick(record, "chapter", "Chapter")),
   };
+}
+
+function singularRecordKey(record: Record<string, unknown>, singular: string): string | undefined {
+  const keys = Object.keys(record);
+  const target = singular.toLowerCase();
+  const exact = keys.find((key) => key.toLowerCase() === target);
+  if (exact) return exact;
+  return keys.find((key) => key.toLowerCase() === `${target}record`);
 }
 
 function coerceFilings(value: unknown, singular: string): Filing[] {
@@ -323,10 +354,16 @@ function coerceFilings(value: unknown, singular: string): Filing[] {
   if (Array.isArray(value)) return value.flatMap((item) => coerceFilings(item, singular));
   const record = asRecord(value);
   if (!record) return [];
-  const singularKey = Object.keys(record).find((key) => key.toLowerCase() === singular.toLowerCase());
+  const singularKey = singularRecordKey(record, singular);
   if (singularKey) return coerceFilings(record[singularKey], singular);
   const filing = normalizeFiling(record);
   return isFiling(filing) ? [filing] : [];
+}
+
+function pickFilings(blj: Record<string, unknown>, ...keys: string[]): unknown {
+  if (keys.some((key) => key in blj)) return pick(blj, ...keys);
+  const results = asRecord(pick(blj, "Results", "results"));
+  return results ? pick(results, ...keys) : undefined;
 }
 
 function normalizeBlj(input: unknown): unknown {
@@ -336,9 +373,9 @@ function normalizeBlj(input: unknown): unknown {
   if (!blj) return input;
   return {
     requestId: stringOrNull(pick(root, "requestId", "RequestID") ?? pick(blj, "requestId", "RequestID")),
-    bankruptcies: coerceFilings(pick(blj, "bankruptcies", "Bankruptcies"), "Bankruptcy"),
-    liens: coerceFilings(pick(blj, "liens", "Liens"), "Lien"),
-    judgments: coerceFilings(pick(blj, "judgments", "Judgments"), "Judgment"),
+    bankruptcies: coerceFilings(pickFilings(blj, "bankruptcies", "Bankruptcies"), "Bankruptcy"),
+    liens: coerceFilings(pickFilings(blj, "liens", "Liens"), "Lien"),
+    judgments: coerceFilings(pickFilings(blj, "judgments", "Judgments"), "Judgment"),
     bankruptciesFound: numberOrNull(pick(blj, "bankruptciesFound", "BankruptciesFound")),
     liensFound: numberOrNull(pick(blj, "liensFound", "LiensFound")),
     judgmentsFound: numberOrNull(pick(blj, "judgmentsFound", "JudgmentsFound")),
