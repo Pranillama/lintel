@@ -59,3 +59,4 @@ Use `useQuery`, `useMutation`, and `useAction` for `listBills`, `getPortfolio`, 
 - [ ] Pixel pass at 1440×900 and 1280×800
 - [ ] Eraser architecture diagram exported for the README
 - [ ] Video recorded (first frame = blotter) + Devpost image
+- [x] `ReceiptPrinter`: scroll-driven 3D thermal printer that prints the tab from a `listBills` response (lines in `receipt/receiptLines.ts`, tests in `tests/ui/`). Not mounted yet.
