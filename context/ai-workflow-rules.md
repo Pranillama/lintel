@@ -22,8 +22,8 @@ You may create or edit files **only** inside your lane's folders (table in `code
 
 | Owner | Folders |
 |---|---|
-| Pranil | `src/intake/`, `src/agents/`, `src/match/`, `src/integrations/`, `fixtures/`, `tests/match/`, `tests/intake/`, `README.md` |
-| Anmol | `src/engine/`, `src/pipeline/`, `src/db/`, `src/audit/`, `src/app/api/`, `tests/` (except Pranil's two subfolders) |
+| Anmol | `src/engine/`, `src/audit/`, `convex/schema.ts`, `convex/bills.ts`, `convex/pipeline.ts`, `convex/engine.ts`, `convex/audit.ts`, `convex/seed.ts`, `tests/` (except Pranil's two subfolders) |
+| Pranil | `src/intake/`, `src/agents/`, `src/match/`, `src/integrations/`, `convex/intake.ts`, `convex/match.ts`, `convex/crs.ts`, `convex/payments.ts`, `fixtures/`, `tests/match/`, `tests/intake/`, `README.md` |
 | Piyush | `src/app/page.tsx`, `src/app/layout.tsx`, `src/app/globals.css`, `src/components/`, `public/` |
 
 If you need something from another lane (a new API field, a new helper), ask its owner in Slack. Do not "just quickly fix it" in their folder. If they are asleep and it blocks you, write the change as a patch file in your Slack message instead.

@@ -24,7 +24,7 @@ Source problem: DSD Cohort "Property Bill Automation" (a CTO about to spend $10M
 | # | Decision | Locked choice |
 |---|---|---|
 | 1 | Main track | **Hyphenate**, Autonomous Systems for Finance |
-| 2 | Extra tracks | **Microsoft** (README paragraph), **CREAO** (investigator agent via API), **CRS** (gated: live sandbox + official test identities by **6:00 PM Sat** or the track is dropped) |
+| 2 | Extra tracks | **Microsoft** (README paragraph), **CREAO** (investigator agent via API), **Convex** (the system of record), **CRS** (gated: live sandbox + official test identities by **6:00 PM Sat** or the track is dropped) |
 | 3 | Stretch only | Coinbase x402 settlement for cleared contractors. Starts only after the 2:00 AM freeze checklist is green and CRS is live. |
 | 4 | Dropped | Mana, Figma (unless someone keeps a true Stage Log), Fetch, Anthropic Public Benefit, Coinbase Trading |
 | 5 | Orchestrator | Our own code: `processBill()` is a deterministic state machine. Agents are workers inside it. |
@@ -35,7 +35,7 @@ Source problem: DSD Cohort "Property Bill Automation" (a CTO about to spend $10M
 | 10 | Opening shot | 4-bill blotter replayed through the live engine. Totals land on **Blocked $680.00 · Held $6,100.00 · Cleared $2,290.40**. |
 | 11 | Learning | Human assigns "1880 Lombard #B" once, an alias is stored, the next bill with that address matches at 1.00 by `HUMAN_ALIAS` and clears. |
 | 12 | Judge chip | Recology, new invoice `RW-10021`, **$686** due today: fuzzy duplicate of `RW-99201`, BLOCKED. |
-| 13 | Stack | One Next.js 16 App Router app, TypeScript strict, SQLite (better-sqlite3), Tailwind 4, Vitest, `@anthropic-ai/sdk`, zod. No auth, no queue, no second service. |
+| 13 | Stack | One Next.js 16 App Router app, TypeScript strict, **Convex as the only backend**, Tailwind 4, Vitest, `@anthropic-ai/sdk`, zod. No auth, no SQLite, no route-handler API, no second app. The browser calls Convex only. |
 | 14 | Lanes | Pranil: intake + agents + matching + integrations + README. Anmol: engine + pipeline + DB + audit + API + tests. Piyush: the whole UI + video. |
 
 ---
@@ -60,29 +60,47 @@ Source problem: DSD Cohort "Property Bill Automation" (a CTO about to spend $10M
 
 ## 4. Architecture
 
+The runtime shape is the Eraser diagram, [Lintel end-to-end architecture](https://app.eraser.io/workspace/nCH5coHP4gcTnJ6qBik0?diagram=6zi90Ltsnv4FgTIQQzJK&layout=canvas), in Anmol's Team. Convex is the only backend. The command center subscribes to it. Keys for Claude, CREAO, CRS, and Coinbase live in the Convex environment, never in the browser.
+
 ```
-               ┌──────────────────────── Next.js app (one process) ────────────────────────┐
- Injector form │  POST /api/bills/process                                                   │
- PDF / photo ──┼─►  processBill(input)            src/pipeline  (Anmol)  ── the orchestrator│
- Replay button │     1. intake      normalizeForm()  | extractDocument()   (Pranil)          │
-               │     2. match       matchBill()       pure, no model      (Pranil)           │
-               │     3. vendor      verifyVendor()    CRS, flag-gated     (Pranil)           │
-               │     4. decide      decide()          pure, no model      (Anmol)            │
-               │     5. persist     bill + audit chain in SQLite          (Anmol)            │
-               │     6. respond     BillView  (< 2 s without a document)                     │
-               │     7. after()     investigate()  CREAO → Claude fallback (Pranil)          │
-               │                    writes InvestigationBrief + audit rows, never status     │
-               │  GET /api/bills  ◄── UI polls every 2 s while any brief is PENDING/RUNNING  │
-               └────────────────────────────────────────────────────────────────────────────┘
+Browser — AP Command Center (Next.js, thin)
+  subscribe: listBills, getBill, verifyAudit
+  Judge form / replay / upload  ──►  processBill action
+  Assign, approve, reject, send draft  ──►  humanResume mutation
+        │
+Convex
+  Queries (reactive, no network)
+    listBills, getBill, verifyAudit
+  Mutations (one transaction, no network, no model)
+    each writes the bill row and one auditEvents row
+    createBill, commitExtraction, commitMatch, commitPolicy,
+    commitCrs, commitPayment, humanResume
+  Actions (the only place HTTP is allowed)
+    processBill      orchestrator                         Anmol
+    extractBill      Claude + CREAO, DOCUMENT path only   Pranil
+    verifyVendor     CRS sandbox, flag-gated              Pranil
+    settleX402       Coinbase on Base Sepolia, stretch    Pranil
+    investigate      CREAO, then Claude fallback          Pranil
+  File storage: PDFs and photos
+  Tables: properties, vendors, vendorAccounts, bills,
+          auditEvents, payments, aliases, investigations
 ```
 
-**Rules of the orchestrator**
-- `processBill` is the only code path that creates a bill. The form, the FEED replay, and the upload all call it. There is no demo mode and no second pipeline.
-- Steps 1 to 6 are synchronous from the caller's view. Step 7 runs after the response with Next's `after()` from `next/server`, because CREAO cold starts take 15 to 60 s.
-- The engine (`decide`) and matcher (`matchBill`) are pure functions over a `LedgerSnapshot`. All IO lives in `src/pipeline`, `src/db`, `src/agents`, `src/integrations`.
-- A failed or slow model call never blocks a decision. Extraction timeout → bill HELD with `EXTRACTION_FAILED`. Investigator failure → brief `FAILED`, bill status unchanged.
+**`processBill` is a Convex action and the only code path that creates a bill.** The form, the FEED replay, and the upload all call it. There is no demo mode and no second pipeline.
 
-**Where AI is allowed:** reading documents into fields with confidence + source snippets; investigating exceptions and drafting messages. **Where AI is forbidden:** duplicates, variance math, limits, status, approver, rail, payment, property match decision, vendor creation, audit hashes. Put this list in the code as a comment at the top of `src/engine/decide.ts`.
+1. `createBill` stores the file when there is one.
+2. FORM or FEED runs `normalizeForm()` inside the action. No model. DOCUMENT runs `extractBill`, which calls Claude and CREAO and returns one `ExtractedBill` (confidence and a source snippet on every field). `commitExtraction` saves it. A timeout, refusal, or parse failure sets `extraction_error` and does not invent fields.
+3. `commitMatch` runs `matchBill()` from §5.4. That function is pure. Exact account number is confidence 1.00. Then a stored human alias. Then the address score. CREAO does not write `match_confidence`.
+4. `verifyVendor` runs only for an `UNVERIFIED_CONTRACTOR` when `LINTEL_CRS_ENABLED=true`. Otherwise the outcome is `NOT_RUN`. `commitCrs` stores whatever the sandbox returned. A timeout is `UNAVAILABLE`, never a pass.
+5. `commitPolicy` runs `decide()` from §5. No model.
+6. A cleared contractor with `LINTEL_X402_ENABLED=true` runs `settleX402`, then `commitPayment` stores the tx hash and `LIVE_TESTNET`. Every other cleared bill is `commitPayment` with rail `UTILITY_PORTAL` or `ACH` and mode `SIMULATED`. The payment row is unique on bill id.
+7. A HELD or BLOCKED bill schedules `investigate`. CREAO first, Claude if CREAO does not return a brief. The action writes the investigation and its audit rows. It does not change bill status. CREAO cold starts are why this step is not on the form's two-second path.
+
+FORM and FEED stay under 2 seconds because they never call `extractBill`. The screen does not poll. `listBills` is a subscription, so a brief moving to DONE shows up on its own.
+
+`decide` and `matchBill` stay pure functions over a `LedgerSnapshot`. They do not import Convex, a model SDK, or `fetch`. Mutations do not call the network. Actions are the only files that may.
+
+**Where AI is allowed:** `extractBill` reading a document into fields; `investigate` drafting a brief. **Where AI is forbidden:** duplicates, variance math, limits, status, approver, rail, payment, the property match decision, vendor creation, audit hashes. Put this list in a comment at the top of `convex/lib/engine.ts`.
 
 ---
 
@@ -160,7 +178,7 @@ Seed: `src/seed/portfolio.ts` (5 properties, 7 vendors, 9 accounts, 30 paid hist
 
 **Opening totals after replay:** Blocked **$680.00** (102) · Held **$6,100.00** (103 + 104) · Cleared **$2,290.40** (101).
 
-**Replay semantics:** `POST /api/demo/replay` wipes live bills, live audit rows, investigations, and aliases (seed history stays), then runs the 4 opening inputs through `processBill` as source `FEED`, label `Saturday intake`, in order. Without the wipe the second replay would flag BILL-101 as a duplicate of itself. `POST /api/demo/reset` does the wipe only. The operator-only reset button is not in the judge drawer; say so if you press it.
+**Replay semantics:** the `replayOpening` mutation wipes live bills, live audit rows, investigations, and aliases (seed history stays), then runs the 4 opening inputs through `processBill` as source `FEED`, label `Saturday intake`, in order. Without the wipe the second replay would flag BILL-101 as a duplicate of itself. `resetDemo` does the wipe only. The operator-only reset button is not in the judge drawer; say so if you press it.
 
 ---
 
@@ -172,7 +190,7 @@ Seed: `src/seed/portfolio.ts` (5 properties, 7 vendors, 9 accounts, 30 paid hist
 | Live judge scenario | Judge Live Test drawer → `processBill`. Chips prefill only. (Piyush + Anmol) |
 | One seats line | Header + README, `SEATS_LINE`. |
 | Real vs simulated + how you know | Modal + README, `REAL_VS_SIMULATED`. Keep it true. |
-| Persistent auditable log | SQLite audit table, hash chain, drawer. |
+| Persistent auditable log | Convex `auditEvents`, hash chain, drawer. `verifyAudit` recomputes it. |
 | Something new | Agents investigate and draft; code decides money; the system learns aliases from humans. |
 
 **CREAO hard requirements:** agent on agent.creao.ai doing core work (investigation), Agent ID + public run share link at the top of README and Devpost, run visible in the demo (brief shows `provider: CREAO` and the run link), CREAO track selected. Track: **AI-First Disruptor**.

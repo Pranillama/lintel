@@ -4,13 +4,11 @@ Short on purpose. These are the rules that keep three agents' code compatible an
 
 ## 1. Stack and versions
 
-- Node **22 LTS** (better-sqlite3 needs a prebuilt binary; Node 20 also works, 24 untested).
-- Next.js **16.4** App Router, React 19, TypeScript strict, Tailwind 4, ESLint (next config).
-- SQLite via **better-sqlite3** (synchronous). No ORM. SQL lives in `src/db/` only.
-- `@anthropic-ai/sdk` for Claude, `zod` for schemas, **Vitest** for tests.
-- Next 16 ships with breaking changes from what most models were trained on. Before using a Next API you are not sure about, read `node_modules/next/dist/docs/` (the `AGENTS.md` block that `next dev` writes says the same).
-- `next.config.ts` has **`cacheComponents` off**. Route handlers that read the DB must still be dynamic: add `export const dynamic = "force-dynamic"` to every `route.ts` under `src/app/api/`. A synchronous SQLite read is invisible to Next's prerender detection, so without this a GET can be frozen at build time.
-- All API routes run on the Node runtime (default). Never `export const runtime = "edge"`.
+- Node **22 LTS**. Next.js **16.4** App Router, React 19, TypeScript strict, Tailwind 4, ESLint (next config).
+- **Convex** is the only backend. Schema, queries, mutations, and actions live in `convex/`. There is no SQLite database and no `src/app/api` route that reads or writes bills.
+- `@anthropic-ai/sdk` for Claude, `zod` for schemas, **Vitest** for the pure engine and matcher. Convex functions are not imported by those tests.
+- Next 16 ships with breaking changes from what most models were trained on. Before using a Next API you are not sure about, read `node_modules/next/dist/docs/`.
+- The browser uses `ConvexProvider` and `useQuery` / `useMutation` / `useAction`. It never calls Claude, CREAO, CRS, or Coinbase.
 
 ## 2. Folder ownership (enforced by review, see ai-workflow-rules.md)
 
@@ -21,24 +19,32 @@ src/seed/           FROZEN seed + policy constants + copy              shared
 src/intake/         form → ExtractedBill                               Pranil
 src/agents/         intake agent, investigator agent (all model calls) Pranil
 src/match/          deterministic matcher                              Pranil
-src/integrations/   crs/, creao/, x402/                                Pranil
+src/integrations/   crs/, creao/, x402 clients, called only from actions  Pranil
+convex/intake.ts    extractBill action                                  Pranil
+convex/match.ts     commitMatch mutation, calls matchBill               Pranil
+convex/crs.ts       verifyVendor action + commitCrs mutation            Pranil
+convex/payments.ts  settleX402 action, called by processBill            Pranil
 fixtures/bills/     sample PDFs/images                                 Pranil
 README.md                                                              Pranil
 src/engine/         deterministic checks, decide(), explain()          Anmol
-src/pipeline/       processBill(), human actions, replay               Anmol
-src/db/             schema, migrations, repo, ledger snapshot          Anmol
-src/audit/          append + hash chain + verify                       Anmol
-src/app/api/        route handlers                                     Anmol
+src/audit/          pure hash helper                                    Anmol
+convex/schema.ts    tables                                              Anmol
+convex/bills.ts     listBills, getBill, createBill, humanResume, replay Anmol
+convex/pipeline.ts  processBill action                                  Anmol
+convex/engine.ts    commitPolicy mutation                               Anmol
+convex/audit.ts     append + verifyAudit query                          Anmol
+convex/seed.ts      seed mutation                                       Anmol
 tests/              golden + unit tests for engine/pipeline            Anmol (Pranil owns tests/match/, tests/intake/)
 src/app/page.tsx, layout.tsx, globals.css                              Piyush
-src/components/     every UI component + api-client                    Piyush
+src/components/     every UI component, Convex hooks                 Piyush
 public/                                                                Piyush
 package.json, package-lock.json, configs                               shared: change only via ai-workflow-rules.md §4
 ```
 
 ## 3. The AI / deterministic boundary (non-negotiable)
 
-- `src/engine/**` and `src/match/**` must not import `@anthropic-ai/sdk`, anything under `src/agents/`, `src/integrations/`, `src/db/`, or do any IO (no `fetch`, no `fs`, no `Date.now()`; time comes in through arguments). A test in `tests/boundary.test.ts` greps these folders and fails on violation.
+- `src/engine/**` and `src/match/**` must not import `@anthropic-ai/sdk`, anything under `src/agents/`, `src/integrations/`, `convex/`, or do any IO (no `fetch`, no `fs`, no `Date.now()`; time comes in through arguments). A test in `tests/boundary.test.ts` greps these folders and fails on violation.
+- Convex **mutations** must not call `fetch` or import a model SDK. Convex **actions** are the only functions that may. `processBill` schedules work. It does not decide a status itself.
 - Model output is **evidence**, never a decision. The only fields a model can fill are `ExtractedBill` fields (with confidence + snippet) and `InvestigationBrief`. No code path may set `BillStatus`, `ReasonCode`, `required_approver`, `rail`, or `payment` from model output.
 - The investigator's tools are read-only. It cannot call an endpoint that mutates anything.
 - Why-sentences and audit rationales for `DETERMINISTIC_RULE` rows are string templates over check data. Never generated by a model.
@@ -47,7 +53,7 @@ package.json, package-lock.json, configs                               shared: c
 
 - Money is a JS `number` of dollars, rounded with `roundUsd()` at every boundary (parse, sum, store). Compare money with a tolerance of 0.005 or after rounding. Never `toFixed()` for math, only display.
 - Percent: compute unrounded, compare unrounded against the threshold, round to 1 decimal for display only.
-- Dates are ISO `YYYY-MM-DD` strings; compare with `daysBetween()` from `src/shared/normalize.ts`. Timestamps: `new Date().toISOString()`, generated only in `src/pipeline` / `src/audit` / `src/db`, then passed in.
+- Dates are ISO `YYYY-MM-DD` strings; compare with `daysBetween()` from `src/shared/normalize.ts`. Timestamps are generated in Convex mutations and actions, then passed into the pure engine. The engine does not call `Date.now()`.
 - Display: `$1,234.56` via `Intl.NumberFormat("en-US", { style: "currency", currency: "USD" })`; percents as `+281.2%` / `−2.1%`.
 
 ## 5. TypeScript
@@ -62,15 +68,15 @@ package.json, package-lock.json, configs                               shared: c
 
 - Lane functions marked "never rejects" in `bill.ts` (`extractDocument`, `verifyVendor`, `investigate`) catch everything and return a typed failure (`extraction_error`, `outcome: "UNAVAILABLE"`, `status: "FAILED"`).
 - Timeouts: extraction `POLICY.EXTRACTION_TIMEOUT_MS` (20 s); CRS 5 s; CREAO 90 s total with 2 s polling, then Claude fallback; Claude investigator 45 s. Use `AbortSignal.timeout(ms)` or the SDK's `{ timeout }` request option (milliseconds in the TS SDK).
-- API routes return `{ error: string }` with a 4xx/5xx status; never leak stack traces or keys.
+- Convex functions throw a `ConvexError` with a short message the UI can show. Never leak stack traces or keys to the client.
 - No silent catch. Every caught error either becomes a typed failure value or is logged with `console.error("[lane] context", err)`.
 
 ## 7. Database
 
-- File: `data/lintel.db` (gitignored). Created, migrated, and seeded on first access by `src/db/` (idempotent: running twice changes nothing).
-- Tables: `bills` (JSON columns for extracted/match/crs/decision/payment), `audit_events`, `investigations`, `aliases`, plus seed tables `properties`, `vendors`, `accounts`, `history`. Seed tables are written only from `src/seed/`.
-- Audit rows are insert-only. No `UPDATE` or `DELETE` on `audit_events` except the demo reset, which wipes live rows wholesale.
-- Every multi-row write (bill + its audit events) happens in one transaction.
+- Convex is the system of record. Tables: `properties`, `vendors`, `vendorAccounts`, `bills`, `auditEvents`, `payments`, `aliases`, `investigations`. Seed data is inserted by `convex/seed.ts` from `src/seed/`. Running the seed twice changes nothing.
+- A PDF or photo is stored with Convex file storage. The bill row stores the storage id.
+- Audit rows are insert-only. The demo reset is the only delete, and it deletes live rows wholesale. Seed history stays.
+- Every status change and its audit row commit in the same mutation. The first `prevHash` is 64 zeros. `verifyAudit` recomputes the chain.
 
 ## 8. Environment
 
@@ -88,7 +94,7 @@ CRS_API_KEY=
 LINTEL_X402_ENABLED=false
 ```
 
-Keys are read only in server code (`src/agents`, `src/integrations`, `src/pipeline`). Never prefix with `NEXT_PUBLIC_`. Never commit a key; never paste one into Slack.
+Keys are set in the Convex dashboard and read only inside actions. Never prefix a secret with `NEXT_PUBLIC_`. Never commit a key. Never paste one into Slack. `NEXT_PUBLIC_CONVEX_URL` is the only public Convex value.
 
 ## 9. Tests and checks
 

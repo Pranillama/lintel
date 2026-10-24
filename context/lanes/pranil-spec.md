@@ -4,9 +4,9 @@ You own everything that turns a messy bill into structured facts (intake, matchi
 
 **Read first:** `context/master-spec.md` (§4 architecture, §5.4 matching, §7 sponsor requirements), `context/code-standards.md` §3 (AI boundary), `src/types/bill.ts`, `src/shared/normalize.ts`, `context/reference/creao-api.md`.
 
-**Your folders:** `src/intake/`, `src/agents/`, `src/match/`, `src/integrations/`, `fixtures/`, `tests/match/`, `tests/intake/`, `README.md`.
+**Your folders:** `src/intake/`, `src/agents/`, `src/match/`, `src/integrations/`, `convex/intake.ts`, `convex/match.ts`, `convex/crs.ts`, `convex/payments.ts`, `fixtures/`, `tests/match/`, `tests/intake/`, `README.md`.
 
-**Consumed by Anmol's pipeline** at these exact paths and signatures (stubs exist from the scaffold):
+**Consumed by Anmol's `processBill` action** at these exact paths and signatures. The Convex actions in your `convex/*.ts` files are the only callers that may touch the network. `matchBill` stays pure and is called from the `commitMatch` mutation.
 `src/intake/normalizeForm.ts` → `normalizeForm: NormalizeFormFn`
 `src/match/matchBill.ts` → `matchBill: MatchBillFn`
 `src/agents/intake/extractDocument.ts` → `extractDocument: ExtractDocumentFn`
@@ -34,6 +34,8 @@ Implement master-spec §5.4 exactly, using only `src/shared/normalize.ts`, `@/se
 - `tests/match/matchBill.test.ts`: every input in `src/seed/demo-inputs.ts` lands on the property, method, and confidence in master-spec §6 (BILL-104 → PROP-002, ADDRESS, 0.80; Pacific Green → PROP-004, 1.00; alias present → HUMAN_ALIAS 1.00); unknown vendor → `vendor_id: null`; Ohio address → UNRESOLVED.
 
 ## 3. Intake agent (`src/agents/intake/extractDocument.ts`)
+
+`convex/intake.ts` `extractBill` is the action on the Eraser diagram. It calls Claude through `extractDocument` and CREAO with the same JSON contract, then returns one `ExtractedBill`. CREAO is evidence. It does not set status or `match_confidence`. If CREAO fails, Claude's fields still return. `commitExtraction` is the mutation that stores them.
 
 Claude reads a PDF or image and returns an `ExtractedBill` with per-field confidence and verbatim source snippets.
 

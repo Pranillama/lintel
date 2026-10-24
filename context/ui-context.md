@@ -2,7 +2,7 @@
 
 Owner: **Piyush**. One screen, the AP Command Center at `/`. No other routes for the demo. Judges stand at a shared, loud table for two minutes: everything that matters must be readable from a meter away without clicking.
 
-Data comes only from the API (`GET /api/bills`, `GET /api/portfolio`, the POST actions). The UI never computes a status, a total, a percentage, or a why-sentence; it renders what `BillView` and `Totals` say. Until the API is live, build against mock `BillView` objects in `src/components/__mocks__/` (clearly mock, never imported by `page.tsx` in the final build).
+Data comes only from Convex (`listBills`, `getPortfolio`, `processBill`, `humanResume`, `replayOpening`). The UI never computes a status, a total, a percentage, or a why-sentence; it renders what `BillView` and `Totals` say. Until those functions are live, build against mock `BillView` objects in `src/components/__mocks__/` (clearly mock, never imported by `page.tsx` in the final build). The page is a client component under `ConvexProvider`.
 
 ---
 
@@ -46,7 +46,7 @@ Data comes only from the API (`GET /api/bills`, `GET /api/portfolio`, the POST a
 
 ## 3. The five-second opening (the video's first frame)
 
-1. On first load (and on `Replay`), call `POST /api/demo/replay`. While waiting, show the four row skeletons with `Reading…` and totals at `$0.00`.
+1. On first load (and on `Replay`), call `replayOpening`. While waiting, show the four row skeletons with `Reading…` and totals at `$0.00`.
 2. When the response arrives, reveal rows top to bottom with a 250 ms stagger (CSS only). Each row's chip flips from `Reading…` to its status.
 3. Totals count up over ~1.2 s to the values in `ReplayResponse.totals`. The Recology amount strikes through once its row lands.
 4. After the last row, auto-select the EBMUD row (the first HELD bill with a spike reason; fall back to the first HELD).
@@ -78,20 +78,21 @@ Order top to bottom:
 - Chips above the form from `JUDGE_CHIPS` plus `ALIAS_TWIN`: clicking a chip **fills the inputs in plain sight**; nothing runs until `Run autonomous pipeline` is pressed. The $686 Recology chip is first.
 - Drop tab: drag area + file picker (PDF, PNG, JPEG, WEBP). Shows the filename, then the same result flow. If extraction fails, the resulting HELD bill shows `EXTRACTION_FAILED`; offer `Type it instead` which switches tabs and keeps whatever fields came back.
 - On run: button disabled with `Running…`; on response, close the drawer, insert the new bill at the top of `Live`, select it, and flash its row once. The blotter never clears between runs.
-- Errors from the API show inline in the drawer, never as `alert()`.
+- Errors from Convex show inline in the drawer, never as `alert()`.
 
 ## 6. Policy card and Real vs Simulated
 
 - **Policy** drawer: `PortfolioResponse.policy_text` as a numbered list, plus a small table of properties with their contractor auto-pay limits. Header line: `Read-only at this desk.`
 - **Real vs Simulated** drawer: table from `PortfolioResponse.real_vs_simulated` (component, status chip REAL/SIMULATED/SEEDED, how to verify). Footer shows feature flags (CRS, CREAO, x402, extraction) as on/off.
 
-## 7. Polling
+## 7. Live updates
 
-- `GET /api/bills` after every mutation, and every 2 s while any `investigation.status` is PENDING or RUNNING. Stop polling when none are.
-- Keep the selected bill selected across refreshes (by id). No flicker: replace data in place.
+- Subscribe to `listBills`. Do not poll.
+- Keep the selected bill selected when the subscription updates (by id). No flicker: replace data in place.
+- A brief moving from PENDING to DONE arrives on that same subscription.
 
 ## 8. Component map (suggested, all under `src/components/`)
 
-`CommandCenter` (client root), `HeaderBar`, `TotalsBar`, `Blotter`, `BillRow`, `DetailPane`, `GuardrailTable`, `MatchPanel`, `UsageBars`, `InvestigatorPanel`, `ActionBar`, `AuditTimeline`, `JudgeDrawer`, `PolicyDrawer`, `RealVsSimulatedDrawer`, `StatusChip`, `ActorChip`, `Money`. `src/components/api-client.ts` wraps fetch calls with the types from `src/types/bill.ts`.
+`CommandCenter` (client root), `HeaderBar`, `TotalsBar`, `Blotter`, `BillRow`, `DetailPane`, `GuardrailTable`, `MatchPanel`, `UsageBars`, `InvestigatorPanel`, `ActionBar`, `AuditTimeline`, `JudgeDrawer`, `PolicyDrawer`, `RealVsSimulatedDrawer`, `StatusChip`, `ActorChip`, `Money`. Call Convex with `useQuery`, `useMutation`, and `useAction`. Do not wrap a REST client.
 
 `src/app/page.tsx` renders `<CommandCenter />` and nothing else.
