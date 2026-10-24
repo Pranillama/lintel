@@ -96,14 +96,14 @@ Only for CLEARED contractor bills, only after CRS is live. Base Sepolia testnet,
 
 - [x] `normalizeForm` real + tests (unblocks Anmol's FORM/FEED path). Landed: trimmed strings, empty fields null at confidence 0, provided values at 1.00 with source FORM or FEED, amounts and line items through `roundUsd`.
 - [x] `matchBill` real + tests for every demo input (post in #pranil-update when on main). Landed: every demo input hits the §6 property, method, and confidence; alias is HUMAN_ALIAS 1.00; unknown vendor is `vendor_id` null; an Ohio address is UNRESOLVED.
-- [ ] CRS: asked in #spons-crs-credit-api for creds + test identities
-- [ ] CREAO: agent created on agent.creao.ai (input field `prompt`), API key in `.env.local`, one manual run returns parseable JSON
-- [ ] Investigator: CREAO client (start + poll + parse) behind `investigate()`
+- [x] CRS: asked in #spons-crs-credit-api for creds + test identities. Landed: `V-APEX` maps to official persona P08; live Stitch Credit sandbox call verified (civil judgment $12,300, state tax lien $7,450).
+- [x] CREAO: agent created on agent.creao.ai (input field `prompt`), API key in `.env.local`, one manual run returns parseable JSON. Landed: Agent ID `cfc435a7-6765-4fb3-8c00-8d55d3c7af52`; verified run `9daa058a-a0d7-4d83-afa3-5a1c2e9ee317` / thread `984de11d-548e-4564-a4fc-ba77c845787b`.
+- [x] Investigator: CREAO client (start + poll + parse) behind `investigate()`
 - [x] CREAO completed runs: parse `result.text` with `investigationOutputSchema` when it matches; otherwise GET the first JSON artifact (`application/json` or `.json` url/id) and parse `{ summary, findings, draft }`. Valid text does not fetch an artifact.
-- [ ] Investigator: Claude fallback (tool runner + `submit_brief`, or single-call)
-- [ ] Intake agent: `extractDocument` on 2 fixtures, timeout and refusal paths return a typed failure
+- [x] Investigator: Claude fallback (tool runner + `submit_brief`, or single-call). Landed: single-call `messages.create` on `claude-opus-5-5`, same zod brief schema as CREAO.
+- [x] Intake agent: `extractDocument` on 2 fixtures, timeout and refusal paths return a typed failure. Landed: PDF and photo paths in `tests/intake/extractDocument.test.ts`; refusal, null output, and timeout return an empty `ExtractedBill` with `extraction_error` set.
 - [ ] Fixtures committed (redacted), CLI script works
-- [ ] 6:00 PM: CRS go/no-go decided and posted
-- [ ] README skeleton + Devpost draft saved (10:00 PM)
-- [ ] CREAO Agent ID + public run link at the top of README and Devpost
+- [x] 6:00 PM: CRS go/no-go decided and posted. Go: sandbox calls work, so the CRS row is REAL in `REAL_VS_SIMULATED`.
+- [x] README skeleton + Devpost draft saved (10:00 PM)
+- [x] CREAO Agent ID + public run link at the top of README and Devpost
 - [ ] Final README true against `REAL_VS_SIMULATED`; submitted by 8:45 AM
