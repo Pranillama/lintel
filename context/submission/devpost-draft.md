@@ -44,7 +44,7 @@ Next.js 16 is the AP Command Center. Convex is the system of record: the screen 
 - `matchBill` is pure: exact account, then a stored human alias, then an address score. No fuzzy vendor guessing.
 - `decide` runs every check in order and writes a `CheckResult` for each: extraction, match, exact duplicate, fuzzy duplicate, line-item sum, usage and amount spike, vendor trust, policy. Status and approver come from that table. Thresholds live in `src/seed/policy.ts`.
 - Vendor trust calls the CRS sandbox only for an `UNVERIFIED_CONTRACTOR` when `LINTEL_CRS_ENABLED=true`. `V-APEX` (Apex Rapid HVAC LLC) is persona P08. Any error is `UNAVAILABLE`. The code never synthesizes a score.
-- After the decision, a held or blocked bill runs `investigate`. CREAO goes first when `CREAO_API_KEY` and `CREAO_AGENT_ID` are set (90 second budget, poll every 2 seconds). Claude Opus 5.5 (`claude-opus-5-5`) is the fallback: one `messages.create` call, same zod brief schema. The brief cannot change status.
+- After the decision, a held or blocked bill runs `investigate`. CREAO goes first when `CREAO_API_KEY` and `CREAO_AGENT_ID` are set (90 second budget, poll every 2 seconds). Claude Sonnet 5.5 (`claude-sonnet-5-5`) is the fallback: one `messages.create` call, same zod brief schema. The brief cannot change status.
 - Every mutation appends an audit event. The hash is SHA-256 of `prev_hash|bill_id|seq|ts|actor|action|decision|rationale`. `verifyAudit` recomputes the chain. The first previous hash is 64 zeros.
 - Cleared utility and ACH payments are `PaymentInstruction` with mode `SIMULATED`. x402 on Base Sepolia is a stretch flag (`LINTEL_X402_ENABLED`) and is not a live settlement in this build.
 
@@ -62,7 +62,7 @@ Public install / share link: https://agent.creao.ai/install/cfc435a7-6765-4fb3-8
 
 Verified live run `9daa058a-a0d7-4d83-afa3-5a1c2e9ee317`, thread `984de11d-548e-4564-a4fc-ba77c845787b`.
 
-`investigate` posts the `InvestigationContext` to `https://agent.creao.ai/api/v1/runs`, polls until the run completes, and parses the brief. A completed run uses `result.text` when it matches the schema; otherwise it reads the first JSON artifact. The brief stores `provider: CREAO` and `creao_run_id`. If CREAO fails or the keys are unset, Claude Opus 5.5 drafts the same schema. CREAO does not set match confidence, status, or payment.
+`investigate` posts the `InvestigationContext` to `https://agent.creao.ai/api/v1/runs`, polls until the run completes, and parses the brief. A completed run uses `result.text` when it matches the schema; otherwise it reads the first JSON artifact. The brief stores `provider: CREAO` and `creao_run_id`. If CREAO fails or the keys are unset, Claude Sonnet 5.5 drafts the same schema. CREAO does not set match confidence, status, or payment.
 
 ### CRS Credit API
 
@@ -79,7 +79,7 @@ Convex is the only backend. Tables: `properties`, `vendors`, `vendorAccounts`, `
 ## Challenges
 
 - CREAO cold starts take long enough that investigation runs after the decision. Form and feed bills stay off the model path so they return without waiting on a run.
-- The Claude fallback ships as one `messages.create` call on Opus 5.5 with the shared brief schema. Forced tool use is a 400 on that model, so the spec's tool-runner shape was not the path that landed.
+- The Claude fallback ships as one `messages.create` call on Claude Sonnet 5.5 (`claude-sonnet-5-5`) with the shared brief schema. Forced tool use is a 400 on Opus 5.5, so the spec's tool-runner shape was not the path that landed.
 - The CRS FCRA BLJ payload is PitchPoint XML turned into JSON: PascalCase keys, and a single filing arrives as an object rather than a one-element array. The parser normalizes that. It does not fill in a judgment the report did not return.
 - The fuzzy-duplicate window is 20 days, not 30, because monthly flat fees (trash, landscaping) recur about 30 days apart and must not block themselves.
 - A second opening replay would flag the first cleared bill as its own duplicate. `replayOpening` wipes live bills, live audit rows, investigations, and aliases, then runs the four inputs again. Seed history stays.
@@ -89,7 +89,7 @@ Convex is the only backend. Tables: `properties`, `vendors`, `vendorAccounts`, `
 - Opening replay totals are produced by the engine on every load: Blocked $680.00, Held $6,100.00, Cleared $2,290.40. Verdicts are not stored.
 - Human alias learning: assign `1880 Lombard #B` once; the twin bill matches by `HUMAN_ALIAS` at confidence 1.00.
 - Golden tests cover the master-spec demo inputs with no network.
-- Investigator runs on the live CREAO agent above, with the Claude Opus 5.5 fallback behind it.
+- Investigator runs on the live CREAO agent above, with the Claude Sonnet 5.5 fallback behind it.
 - CRS vendor check is a live Stitch sandbox call for P08, gated by `LINTEL_CRS_ENABLED`.
 - The audit drawer verifies a SHA-256 hash chain.
 
@@ -103,7 +103,7 @@ Convex is the only backend. Tables: `properties`, `vendors`, `vendorAccounts`, `
 
 ## Built With
 
-Next.js 16, React 19, TypeScript, Convex, Tailwind CSS, Zod, Vitest, Claude Haiku 5.5, Claude Opus 5.5, CREAO, CRS Credit API (Stitch Credit sandbox)
+Next.js 16, React 19, TypeScript, Convex, Tailwind CSS, Zod, Vitest, Claude Haiku 5.5, Claude Sonnet 5.5, CREAO, CRS Credit API (Stitch Credit sandbox)
 
 ## 2-minute table demo script
 

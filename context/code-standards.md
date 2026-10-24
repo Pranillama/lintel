@@ -86,7 +86,7 @@ package.json, package-lock.json, configs                               shared: c
 ```
 ANTHROPIC_API_KEY=
 LINTEL_EXTRACT_MODEL=claude-haiku-5-5
-LINTEL_INVESTIGATOR_MODEL=claude-opus-5-5
+LINTEL_INVESTIGATOR_MODEL=claude-sonnet-5-5
 CREAO_API_KEY=            # capi_..., server only
 CREAO_AGENT_ID=
 LINTEL_CRS_ENABLED=false

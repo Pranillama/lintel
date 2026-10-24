@@ -72,7 +72,7 @@ Runs after the decision on every HELD/BLOCKED bill. Reads, reasons, drafts. Cann
   - `POST https://agent.creao.ai/api/v1/runs` `{ appId, inputs: { prompt: JSON.stringify(context) }, idempotencyKey: "lintel-inv-<billId>" }` → poll `GET /api/v1/runs/{runId}` every 2 s until `completed|failed|cancelled`. Strip code fences from `result.text`, zod-parse. Store `creao_run_id`.
   - Server-only key (`CREAO_API_KEY`, `capi_...`). Cold runs take 15 to 60 s; that is why this runs after the response.
   - For the README and Devpost: open one completed `[API]` run thread on agent.creao.ai, click Share, put the **Agent ID** and **public run share link** at the very top. Also set `creao_share_url` on briefs if you can derive it; otherwise the UI shows the run id.
-- **Claude fallback** (`claude.ts`): `client.beta.messages.toolRunner()` with `betaZodTool` read-only tools over the context: `get_bill_checks`, `get_history`, `get_related_bills`, `get_property`, `get_vendor`, `get_policy`, plus `submit_brief` (zod schema = output schema) whose `run` captures the brief. `tool_choice` stays auto (forced tool use is a 400 on Opus 5.5): the prompt says "finish by calling submit_brief". No brief captured → FAILED. Model `LINTEL_INVESTIGATOR_MODEL ?? "claude-opus-5-5"`, effort `"medium"`, timeout 45 s. If the tool runner fights you past 45 minutes, ship the single-call version (`messages.parse` with the whole context) and move on.
+- **Claude fallback** (`claude.ts`): one `client.messages.create` call with the whole `InvestigationContext`. The installed SDK has no `messages.parse`, so the text is zod-parsed with the same brief schema CREAO uses. Model `LINTEL_INVESTIGATOR_MODEL ?? "claude-sonnet-5-5"`, effort `"medium"`, timeout 45 s. A refusal or empty text fails the brief. Forced tool use is a 400 on Opus 5.5. The shipped fallback is this single `messages.create` call.
 
 ## 5. CRS vendor check (`src/integrations/crs/verifyVendor.ts`), gated
 
@@ -100,7 +100,7 @@ Only for CLEARED contractor bills, only after CRS is live. Base Sepolia testnet,
 - [x] CREAO: agent created on agent.creao.ai (input field `prompt`), API key in `.env.local`, one manual run returns parseable JSON. Landed: Agent ID `cfc435a7-6765-4fb3-8c00-8d55d3c7af52`; verified run `9daa058a-a0d7-4d83-afa3-5a1c2e9ee317` / thread `984de11d-548e-4564-a4fc-ba77c845787b`.
 - [x] Investigator: CREAO client (start + poll + parse) behind `investigate()`
 - [x] CREAO completed runs: parse `result.text` with `investigationOutputSchema` when it matches; otherwise GET the first JSON artifact (`application/json` or `.json` url/id) and parse `{ summary, findings, draft }`. Valid text does not fetch an artifact.
-- [x] Investigator: Claude fallback (tool runner + `submit_brief`, or single-call). Landed: single-call `messages.create` on `claude-opus-5-5`, same zod brief schema as CREAO.
+- [x] Investigator: Claude fallback. Landed: single-call `messages.create` on `claude-sonnet-5-5`, same zod brief schema as CREAO.
 - [x] Intake agent: `extractDocument` on 2 fixtures, timeout and refusal paths return a typed failure. Landed: PDF and photo paths in `tests/intake/extractDocument.test.ts`; refusal, null output, and timeout return an empty `ExtractedBill` with `extraction_error` set.
 - [ ] Fixtures committed (redacted), CLI script works
 - [x] 6:00 PM: CRS go/no-go decided and posted. Go: sandbox calls work, so the CRS row is REAL in `REAL_VS_SIMULATED`.

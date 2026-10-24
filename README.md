@@ -33,7 +33,7 @@ End-to-end AP desk. The 4-bill opening replay lands Blocked `$680.00` · Held `$
 
 | Who | Owns |
 | --- | --- |
-| AI | `extractDocument` (Claude Haiku 5.5), `investigate` via CREAO with a Claude Opus 5.5 fallback |
+| AI | `extractDocument` (Claude Haiku 5.5), `investigate` via CREAO with a Claude Sonnet 5.5 fallback |
 | Code | `matchBill`, `decide`, duplicate / spike / line-sum / CRS / policy checks, SHA-256 hash chain |
 | Humans | Property assignment, exception approval and rejection, sending drafted follow-ups |
 
@@ -109,7 +109,7 @@ Variables the repo reads:
 | `NEXT_PUBLIC_CONVEX_URL` | Public Convex URL. `npx convex dev` writes it. The only `NEXT_PUBLIC_` value. |
 | `ANTHROPIC_API_KEY` | Claude. The intake agent and the investigator fallback use the SDK default; `convex/bills/queries.ts` reads this name for the extraction flag. |
 | `LINTEL_EXTRACT_MODEL` | Intake model. Default `claude-haiku-5-5`. |
-| `LINTEL_INVESTIGATOR_MODEL` | Investigator fallback. Default `claude-opus-5-5`. |
+| `LINTEL_INVESTIGATOR_MODEL` | Investigator fallback. Default `claude-sonnet-5-5`. |
 | `CREAO_API_KEY` | Server-only CREAO key. |
 | `CREAO_AGENT_ID` | `cfc435a7-6765-4fb3-8c00-8d55d3c7af52` |
 | `LINTEL_CRS_ENABLED` | `true` calls the CRS sandbox for `UNVERIFIED_CONTRACTOR` vendors. Otherwise the outcome is `NOT_RUN`. |
@@ -133,6 +133,6 @@ npm run extract -- fixtures/bills/BILL-103-ebmud.pdf
 
 ## Team
 
-- **Pranil Lama** ([@Pranillama](https://github.com/Pranillama)) — Intake normalizer & document extraction agent (Claude Haiku 5.5), deterministic property/vendor matcher, exception investigator agent (CREAO AI + Claude Opus 5.5 tool-runner fallback), CRS Credit API integration, sponsor setup & submission.
+- **Pranil Lama** ([@Pranillama](https://github.com/Pranillama)) — Intake normalizer & document extraction agent (Claude Haiku 5.5), deterministic property/vendor matcher, exception investigator agent (CREAO AI + Claude Sonnet 5.5 fallback), CRS Credit API integration, sponsor setup & submission.
 - **Anmol Pandey** ([@axp8948](https://github.com/axp8948)) — Convex backend, deterministic guardrail & policy engine (`decide`), `processBill` orchestrator pipeline, SHA-256 hash-chained audit log, golden test suite.
 - **Piyush Singh** — Next.js 16 AP Command Center UI, live blotter & replay, Judge Live Test drawer, why-card & usage sparklines, audit verification drawer, demo video.
