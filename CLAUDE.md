@@ -50,8 +50,8 @@ The test: Every changed line should trace directly to the user's request.
 
 Lintel is an autonomous corporate Accounts Payable (AP) and property utility bill System of Work. Across the entire codebase:
 
-- **AI/LLMs** may extract unstructured invoice/utility fields, resolve entities (vendor, service address, property, meter, GL code), and attach explicit confidence scores (`0.00` to `1.00`) and plain-English reasoning.
-- **Deterministic code** must enforce all financial math, duplicate bill checks, historical variance/spike thresholds, approval limits, and policy guardrails with zero LLM calls.
+- **AI/LLMs** may fill `ExtractedBill` fields from an unstructured invoice or utility document, and may draft an `InvestigationBrief` after the decision. Each extracted field carries a confidence score (`0.00` to `1.00`) and plain-English reasoning.
+- **Deterministic code** owns entity resolution through `matchBill()` (vendor, service address, property, meter, GL code) and must enforce all financial math, duplicate bill checks, historical variance/spike thresholds, approval limits, and policy guardrails with zero LLM calls.
 - **Human-in-the-loop escalation:** Any low-confidence extraction or failed policy guardrail must halt autonomous settlement and route to the operator exception queue with an immutable audit log entry.
 
 ## 5. Goal-Driven Execution
