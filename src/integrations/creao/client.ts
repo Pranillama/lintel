@@ -36,14 +36,23 @@ const creaoStartSchema = z.object({
   id: z.string().min(1),
 });
 
+const creaoArtifactSchema = z.object({
+  id: z.string().nullish(),
+  type: z.string().nullish(),
+  url: z.string().nullish(),
+});
+
 const creaoRunSchema = z.object({
   status: z.string(),
   result: z
     .object({
-      text: z.string(),
+      text: z.string().nullish(),
+      artifacts: z.array(creaoArtifactSchema).nullish(),
     })
     .nullish(),
 });
+
+type CreaoRunResult = z.infer<typeof creaoRunSchema>["result"];
 
 export async function runCreao(ctx: InvestigationContext): Promise<{
   output: InvestigationOutput;
@@ -73,9 +82,7 @@ export async function runCreao(ctx: InvestigationContext): Promise<{
     if (Date.now() >= deadline) break;
     const run = creaoRunSchema.parse(await creaoFetch(runUrl, apiKey, deadline, { method: "GET" }));
     if (run.status === "completed") {
-      const text = run.result?.text;
-      if (!text || text.trim() === "") throw new Error("CREAO completed without result text");
-      const output = investigationOutputSchema.parse(parseModelJson(text));
+      const output = await readCompletedOutput(run.result, apiKey, deadline);
       return { output, creao_run_id: started.id };
     }
     if (run.status === "failed" || run.status === "cancelled") {
@@ -86,6 +93,55 @@ export async function runCreao(ctx: InvestigationContext): Promise<{
     await sleep(wait);
   }
   throw new Error("CREAO timed out after 90s");
+}
+
+/**
+ * Skills write `{ summary, findings, draft }` onto a JSON artifact.
+ * `result.text` is often only the skill input summary, so a matching brief
+ * in text wins and an artifact is fetched only when text is missing or invalid.
+ */
+async function readCompletedOutput(
+  result: CreaoRunResult,
+  apiKey: string,
+  deadline: number,
+): Promise<InvestigationOutput> {
+  const fromText = investigationFromText(result?.text);
+  if (fromText.output) return fromText.output;
+
+  const artifactUrl = jsonArtifactUrl(result?.artifacts);
+  if (artifactUrl) {
+    const payload = await creaoFetch(artifactUrl, apiKey, deadline, { method: "GET" });
+    return investigationOutputSchema.parse(payload);
+  }
+
+  if (fromText.error) throw fromText.error;
+  throw new Error("CREAO completed without result text");
+}
+
+function investigationFromText(text: string | null | undefined): {
+  output: InvestigationOutput | null;
+  error: unknown;
+} {
+  if (!text || text.trim() === "") return { output: null, error: null };
+  try {
+    const parsed = investigationOutputSchema.safeParse(parseModelJson(text));
+    if (parsed.success) return { output: parsed.data, error: null };
+    return { output: null, error: parsed.error };
+  } catch (err) {
+    return { output: null, error: err };
+  }
+}
+
+function jsonArtifactUrl(
+  artifacts: ReadonlyArray<z.infer<typeof creaoArtifactSchema>> | null | undefined,
+): string | null {
+  for (const artifact of artifacts ?? []) {
+    const url = artifact.url ?? "";
+    const id = artifact.id ?? "";
+    const isJson = artifact.type === "application/json" || url.endsWith(".json") || id.endsWith(".json");
+    if (isJson && url !== "") return url;
+  }
+  return null;
 }
 
 function assertServer(): void {

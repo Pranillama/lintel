@@ -99,6 +99,7 @@ Only for CLEARED contractor bills, only after CRS is live. Base Sepolia testnet,
 - [ ] CRS: asked in #spons-crs-credit-api for creds + test identities
 - [ ] CREAO: agent created on agent.creao.ai (input field `prompt`), API key in `.env.local`, one manual run returns parseable JSON
 - [ ] Investigator: CREAO client (start + poll + parse) behind `investigate()`
+- [x] CREAO completed runs: parse `result.text` with `investigationOutputSchema` when it matches; otherwise GET the first JSON artifact (`application/json` or `.json` url/id) and parse `{ summary, findings, draft }`. Valid text does not fetch an artifact.
 - [ ] Investigator: Claude fallback (tool runner + `submit_brief`, or single-call)
 - [ ] Intake agent: `extractDocument` on 2 fixtures, timeout and refusal paths return a typed failure
 - [ ] Fixtures committed (redacted), CLI script works
