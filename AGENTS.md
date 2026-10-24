@@ -4,7 +4,7 @@ Lintel is our Cal Hacks 13.0 project: an autonomous property utility and vendor 
 
 Read the following files in order (as they are added inside `context/`) before implementing or making any architectural decision:
 
-1. `context/master-spec.md` (or `context/project-overview.md` & `context/architecture-context.md`) — product definition, system boundaries, shared data contract, seeded demo scenarios, and candidate sponsor tracks
+1. `context/master-spec.md` — product definition, system boundaries, shared data contract, seeded demo scenarios, and sponsor tracks
 2. `context/ui-context.md` — operator queue UX, exception review workflow, audit log presentation, and component conventions
 3. `context/code-standards.md` — implementation rules, TypeScript conventions, and the strict boundary between AI extraction and deterministic financial guardrails
 4. `context/ai-workflow-rules.md` — contract-first workflow, branch hygiene, and how multiple teammates and coding agents work in parallel without merge conflicts

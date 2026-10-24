@@ -7,7 +7,7 @@
 
 ## 1. Two Server-Side Programmatic Paths (Choose Path A or Path B)
 
-Never expose `capi_` or `cr_sk_` keys in browser client code. Call from Next.js API routes / server actions (`src/agents/`).
+Never expose `capi_` or `cr_sk_` keys in browser client code. Call CREAO from Convex actions: `extractBill` on the document path, and `investigate` after `processBill` schedules it for a held or blocked bill. Keys live in the Convex environment.
 
 | Feature | Path A: App-Scoped API Trigger (Recommended by Cal Hacks Tech Pack) | Path B: Developer Console Realtime / Async API |
 | :--- | :--- | :--- |
@@ -27,7 +27,7 @@ For local development at Cal Hacks, **use 2-second polling instead of `webhookUr
 
 ### Step A: Start a Run (`POST https://agent.creao.ai/api/v1/runs`)
 ```typescript
-// Env vars needed in .env.local:
+// Set these in the Convex environment. Actions read process.env there.
 // CREAO_API_KEY=capi_...
 // CREAO_AGENT_ID=00000000-0000-4000-8000-000000000000
 
