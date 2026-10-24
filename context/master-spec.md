@@ -62,6 +62,8 @@ Source problem: DSD Cohort "Property Bill Automation" (a CTO about to spend $10M
 
 The runtime shape is the Eraser diagram, [Lintel end-to-end architecture](https://app.eraser.io/workspace/nCH5coHP4gcTnJ6qBik0?diagram=6zi90Ltsnv4FgTIQQzJK&layout=canvas), in Anmol's Team. Convex is the only backend. The command center subscribes to it. Keys for Claude, CREAO, CRS, and Coinbase live in the Convex environment, never in the browser.
 
+The same diagram has a separate highlighted group, **Add-on: precedent learning (not on the Sunday demo path)**, specified in `context/add-ons/precedent-learning.md`. That group is not part of the pipeline steps below.
+
 ```
 Browser — AP Command Center (Next.js, thin)
   subscribe: listBills, getBill, verifyAudit
