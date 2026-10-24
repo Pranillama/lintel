@@ -60,5 +60,5 @@ export const REAL_VS_SIMULATED: Array<{
   { component: "Usage baselines (CCF, kWh)", status: "SEEDED", how_to_verify: "src/seed/portfolio.ts; not a utility data feed." },
   { component: "Payment execution (utility portal, ACH)", status: "SIMULATED", how_to_verify: "Cleared bills show rail + SIMULATED badge; no money moves." },
   { component: "Drafted emails and work orders", status: "SIMULATED", how_to_verify: "Send logs an audit event; nothing leaves the app." },
-  // Add a CRS row (status REAL) only once live sandbox calls with CRS test identities work. Never list it otherwise.
+  { component: "CRS Credit API vendor background check (FCRA BLJ / OFAC / Criminal)", status: "REAL", how_to_verify: "Run CHIP-NEW-CONTRACTOR (Apex Rapid HVAC LLC, P08 Priya Venkatesan) with LINTEL_CRS_ENABLED=true; returns live Stitch Credit sandbox civil judgment ($12,300) and state tax lien ($7,450)." },
 ];
