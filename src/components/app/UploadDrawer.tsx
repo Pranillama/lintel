@@ -2,21 +2,18 @@
 
 /**
  * Upload a bill. The PDF or photo comes first; typing a bill in is tucked behind a disclosure.
- * The run goes through `track`, so it shows under "Processing now" in the Inbox even if this closes.
+ * "Read and check" closes this and opens the full-screen receipt story on the run, which
+ * goes through `track`, so it also shows under "Processing now" in the Inbox.
  */
-import { useRouter } from "next/navigation";
 import { useRef, useState } from "react";
-import type { BillFormInput, BillView, UploadedDocument, UsageUnit } from "@/types/bill";
-import { errorMessage } from "../desk/contract";
-import { storyOf } from "../desk/story";
-import { Button, Icon, Money, T } from "../desk/ui";
+import type { BillFormInput, UploadedDocument, UsageUnit } from "@/types/bill";
+import { Button, Icon, T } from "../desk/ui";
 import { useApp } from "./AppProvider";
-import { Overlay, Stamp } from "./kit";
+import { Overlay } from "./kit";
 import { Field, INPUT } from "./portfolio";
 
 const MEDIA: UploadedDocument["media_type"][] = ["application/pdf", "image/png", "image/jpeg", "image/webp"];
 const UNITS: UsageUnit[] = ["KWH", "CCF", "THERM", "YD3"];
-const PHASES = ["Reading the bill", "Matching it to a property", "Running the checks"];
 
 interface FormState {
   vendor_name: string; invoice_number: string; total_amount: string; due_date: string;
@@ -51,21 +48,16 @@ function readBase64(file: File): Promise<string> {
 }
 
 export function UploadDrawer({ onClose }: { onClose(): void }) {
-  const router = useRouter();
-  const { data, actions, track } = useApp();
+  const { actions, runStory } = useApp();
   const [file, setFile] = useState<File | null>(null);
   const [typing, setTyping] = useState(false);
   const [form, setForm] = useState<FormState>(() => ({ ...EMPTY, due_date: today() }));
-  const [phase, setPhase] = useState<number | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const [result, setResult] = useState<BillView | null>(null);
   const [over, setOver] = useState(false);
   const fileRef = useRef<HTMLInputElement>(null);
 
   const parsed = typing && !file ? toForm(form) : null;
-  const canRun = phase === null && (file !== null || parsed !== null);
-  // The newest copy of the bill: a follow-up draft can land after the run returns.
-  const shown = result ? (data.bills.find((b) => b.id === result.id) ?? result) : null;
+  const canRun = file !== null || parsed !== null;
 
   function pick(f: File | undefined) {
     if (!f) return;
@@ -73,32 +65,16 @@ export function UploadDrawer({ onClose }: { onClose(): void }) {
     else setError("Use a PDF, or a PNG, JPEG or WEBP photo.");
   }
 
-  async function run() {
+  function run() {
     if (!canRun) return;
-    setError(null);
-    setPhase(0);
-    // The engine reports no progress, so the phases are paced: reading a document takes seconds, a typed bill doesn't.
-    const step = file ? 2500 : 300;
-    const t1 = window.setTimeout(() => setPhase(1), step);
-    const t2 = window.setTimeout(() => setPhase(2), step * 2);
-    try {
-      const bill = file
-        ? await track(file.name, async () => actions.processDocument({ filename: file.name, media_type: file.type as UploadedDocument["media_type"], data_base64: await readBase64(file) }))
-        : await track(`${form.vendor_name.trim()} · ${form.invoice_number.trim()}`, () => actions.processForm(parsed as BillFormInput));
-      setResult(bill);
-    } catch (err) {
-      setError(errorMessage(err));
-    } finally {
-      window.clearTimeout(t1);
-      window.clearTimeout(t2);
-      setPhase(null);
+    if (file) {
+      runStory("DOCUMENT", file.name, { filename: file.name }, async () =>
+        actions.processDocument({ filename: file.name, media_type: file.type as UploadedDocument["media_type"], data_base64: await readBase64(file) }));
+    } else {
+      const form = parsed as BillFormInput;
+      runStory("FORM", `${form.vendor_name} · ${form.invoice_number}`, { invoice: form.invoice_number }, () => actions.processForm(form));
     }
-  }
-
-  function reset() {
-    setResult(null);
-    setFile(null);
-    setForm({ ...EMPTY, due_date: today() });
+    onClose();
   }
 
   const patch = (p: Partial<FormState>) => setForm((f) => ({ ...f, ...p }));
@@ -116,128 +92,84 @@ export function UploadDrawer({ onClose }: { onClose(): void }) {
           </button>
         </header>
 
-        {shown ? (
-          <Result bill={shown} onOpen={() => { onClose(); router.push(`/bills/${encodeURIComponent(shown.id)}`); }} onAnother={reset} />
-        ) : phase !== null ? (
-          <div className="flex min-h-0 flex-1 flex-col gap-4 px-6 pb-6" aria-live="polite">
-            <div className="flex items-center gap-3 rounded-[10px] bg-bar px-4 py-3">
-              <Icon name="doc" className="text-muted" />
-              <span className={`${T.small} min-w-0 flex-1 truncate`}>{file?.name ?? `${form.vendor_name} · ${form.invoice_number}`}</span>
-            </div>
-            <ol className="flex flex-col gap-3">
-              {PHASES.map((p, i) => (
-                <li key={p} className={`${T.body} flex items-center gap-3 ${i < phase ? "text-paper" : i === phase ? "font-semibold text-paper" : "text-muted"}`}>
-                  <span className={`inline-flex size-6 items-center justify-center rounded-full ${i < phase ? "bg-ok/15 text-ok" : i === phase ? "bg-lime/15 text-lime" : "bg-white/[0.06]"}`}>
-                    {i < phase ? <Icon name="check" className="size-3" /> : <span className={`size-2 rounded-full ${i === phase ? "animate-pulse bg-lime" : "bg-muted/50"}`} />}
-                  </span>
-                  {p}{i === phase && "…"}
-                </li>
-              ))}
-            </ol>
-            <p className={`${T.small} text-muted`}>You can close this. The bill shows under Processing now in the Inbox until it lands.</p>
-          </div>
-        ) : (
-          <>
-            <div className="flex min-h-0 flex-1 flex-col gap-4 overflow-y-auto px-6 pb-6">
-              <input ref={fileRef} type="file" accept={MEDIA.join(",")} className="sr-only" onChange={(e) => pick(e.target.files?.[0])} />
-              {file ? (
-                <div className="flex h-14 items-center gap-3 rounded-[10px] bg-bar px-4">
-                  <Icon name="doc" className="text-muted" />
-                  <span className={`${T.small} min-w-0 flex-1 truncate`}>{file.name}</span>
-                  <Button kind="text" onClick={() => setFile(null)}>Remove</Button>
-                </div>
-              ) : (
-                <button
-                  type="button"
-                  onClick={() => fileRef.current?.click()}
-                  onDragOver={(e) => { e.preventDefault(); setOver(true); }}
-                  onDragLeave={() => setOver(false)}
-                  onDrop={(e) => { e.preventDefault(); setOver(false); pick(e.dataTransfer.files[0]); }}
-                  className={`flex h-48 w-full shrink-0 cursor-pointer flex-col items-center justify-center gap-2 rounded-[12px] border-[1.5px] border-dashed text-center outline-none focus-visible:ring-2 focus-visible:ring-paper ${over ? "border-lime bg-lime/5" : "border-muted/50 hover:border-paper/70"}`}
-                >
-                  <Icon name="upload" className="size-6 text-paper" />
-                  <span className={`${T.body} font-semibold`}>Drop the bill here</span>
-                  <span className={`${T.small} text-muted`}>A PDF, or a photo of a paper bill · <span className="text-paper underline underline-offset-2">browse</span></span>
+        <>
+          <div className="flex min-h-0 flex-1 flex-col gap-4 overflow-y-auto px-6 pb-6">
+            <input ref={fileRef} type="file" accept={MEDIA.join(",")} className="sr-only" onChange={(e) => pick(e.target.files?.[0])} />
+            {file ? (
+              <div className="flex h-14 items-center gap-3 rounded-[10px] bg-bar px-4">
+                <Icon name="doc" className="text-muted" />
+                <span className={`${T.small} min-w-0 flex-1 truncate`}>{file.name}</span>
+                <Button kind="text" onClick={() => setFile(null)}>Remove</Button>
+              </div>
+            ) : (
+              <button
+                type="button"
+                onClick={() => fileRef.current?.click()}
+                onDragOver={(e) => { e.preventDefault(); setOver(true); }}
+                onDragLeave={() => setOver(false)}
+                onDrop={(e) => { e.preventDefault(); setOver(false); pick(e.dataTransfer.files[0]); }}
+                className={`flex h-48 w-full shrink-0 cursor-pointer flex-col items-center justify-center gap-2 rounded-[12px] border-[1.5px] border-dashed text-center outline-none focus-visible:ring-2 focus-visible:ring-paper ${over ? "border-lime bg-lime/5" : "border-muted/50 hover:border-paper/70"}`}
+              >
+                <Icon name="upload" className="size-6 text-paper" />
+                <span className={`${T.body} font-semibold`}>Drop the bill here</span>
+                <span className={`${T.small} text-muted`}>A PDF, or a photo of a paper bill · <span className="text-paper underline underline-offset-2">browse</span></span>
+              </button>
+            )}
+
+            {!file && (
+              <div className="shrink-0 rounded-[10px] bg-bar">
+                <button type="button" aria-expanded={typing} onClick={() => setTyping((t) => !t)}
+                  className={`${T.small} flex w-full cursor-pointer items-center gap-2 rounded-[10px] px-4 py-3 text-left text-muted outline-none hover:text-paper focus-visible:ring-2 focus-visible:ring-paper`}>
+                  <Icon name="chevron" className={typing ? "" : "-rotate-90"} /> No file? Type it in
                 </button>
-              )}
+                {typing && (
+                  <section aria-label="Bill details" className="grid grid-cols-2 gap-x-3 gap-y-4 px-4 pb-4">
+                    <Field label="Vendor"><input className={INPUT} value={form.vendor_name} onChange={(e) => patch({ vendor_name: e.target.value })} placeholder="Utility or contractor" /></Field>
+                    <Field label="Invoice number"><input className={`${INPUT} font-mono`} value={form.invoice_number} onChange={(e) => patch({ invoice_number: e.target.value })} placeholder="As printed" /></Field>
+                    <Field label="Amount (USD)"><input className={INPUT} inputMode="decimal" value={form.total_amount} onChange={(e) => patch({ total_amount: e.target.value })} placeholder="0.00" /></Field>
+                    <Field label="Due date"><input className={`${INPUT} [color-scheme:dark]`} type="date" value={form.due_date} onChange={(e) => patch({ due_date: e.target.value })} /></Field>
+                    <Field label="Service address" wide><input className={INPUT} value={form.service_address} onChange={(e) => patch({ service_address: e.target.value })} placeholder="Street, city, state ZIP" /></Field>
+                    <Field label="Account number (optional)"><input className={`${INPUT} font-mono`} value={form.account_number} onChange={(e) => patch({ account_number: e.target.value })} /></Field>
+                    <div className="grid min-w-0 grid-cols-[1fr_96px] gap-2">
+                      <Field label="Usage (optional)"><input className={INPUT} inputMode="decimal" value={form.usage_qty} onChange={(e) => patch({ usage_qty: e.target.value })} /></Field>
+                      <Field label="Unit">
+                        <select className={`${INPUT} cursor-pointer`} value={form.usage_unit} onChange={(e) => patch({ usage_unit: e.target.value })}>
+                          <option value="" className="bg-card">None</option>
+                          {UNITS.map((u) => <option key={u} value={u} className="bg-card">{u}</option>)}
+                        </select>
+                      </Field>
+                    </div>
+                    <div className="col-span-2 flex flex-col gap-2">
+                      <span className={`${T.small} text-muted`}>Line items (optional)</span>
+                      {form.lines.map((l, i) => (
+                        <div key={i} className="grid grid-cols-[1fr_112px_40px] gap-2">
+                          <input aria-label={`Line ${i + 1} description`} className={INPUT} value={l.description} onChange={(e) => patch({ lines: form.lines.map((x, j) => (j === i ? { ...x, description: e.target.value } : x)) })} />
+                          <input aria-label={`Line ${i + 1} amount`} className={INPUT} inputMode="decimal" value={l.amount} onChange={(e) => patch({ lines: form.lines.map((x, j) => (j === i ? { ...x, amount: e.target.value } : x)) })} />
+                          <button type="button" aria-label={`Remove line ${i + 1}`} onClick={() => patch({ lines: form.lines.filter((_, j) => j !== i) })} className="inline-flex size-10 cursor-pointer items-center justify-center rounded-full text-muted hover:text-paper">
+                            <Icon name="x" />
+                          </button>
+                        </div>
+                      ))}
+                      <Button kind="text" className="self-start" onClick={() => patch({ lines: [...form.lines, { description: "", amount: "" }] })}><Icon name="plus" /> Add a line</Button>
+                    </div>
+                  </section>
+                )}
+              </div>
+            )}
+          </div>
 
-              {!file && (
-                <div className="shrink-0 rounded-[10px] bg-bar">
-                  <button type="button" aria-expanded={typing} onClick={() => setTyping((t) => !t)}
-                    className={`${T.small} flex w-full cursor-pointer items-center gap-2 rounded-[10px] px-4 py-3 text-left text-muted outline-none hover:text-paper focus-visible:ring-2 focus-visible:ring-paper`}>
-                    <Icon name="chevron" className={typing ? "" : "-rotate-90"} /> No file? Type it in
-                  </button>
-                  {typing && (
-                    <section aria-label="Bill details" className="grid grid-cols-2 gap-x-3 gap-y-4 px-4 pb-4">
-                      <Field label="Vendor"><input className={INPUT} value={form.vendor_name} onChange={(e) => patch({ vendor_name: e.target.value })} placeholder="Utility or contractor" /></Field>
-                      <Field label="Invoice number"><input className={`${INPUT} font-mono`} value={form.invoice_number} onChange={(e) => patch({ invoice_number: e.target.value })} placeholder="As printed" /></Field>
-                      <Field label="Amount (USD)"><input className={INPUT} inputMode="decimal" value={form.total_amount} onChange={(e) => patch({ total_amount: e.target.value })} placeholder="0.00" /></Field>
-                      <Field label="Due date"><input className={`${INPUT} [color-scheme:dark]`} type="date" value={form.due_date} onChange={(e) => patch({ due_date: e.target.value })} /></Field>
-                      <Field label="Service address" wide><input className={INPUT} value={form.service_address} onChange={(e) => patch({ service_address: e.target.value })} placeholder="Street, city, state ZIP" /></Field>
-                      <Field label="Account number (optional)"><input className={`${INPUT} font-mono`} value={form.account_number} onChange={(e) => patch({ account_number: e.target.value })} /></Field>
-                      <div className="grid min-w-0 grid-cols-[1fr_96px] gap-2">
-                        <Field label="Usage (optional)"><input className={INPUT} inputMode="decimal" value={form.usage_qty} onChange={(e) => patch({ usage_qty: e.target.value })} /></Field>
-                        <Field label="Unit">
-                          <select className={`${INPUT} cursor-pointer`} value={form.usage_unit} onChange={(e) => patch({ usage_unit: e.target.value })}>
-                            <option value="" className="bg-card">None</option>
-                            {UNITS.map((u) => <option key={u} value={u} className="bg-card">{u}</option>)}
-                          </select>
-                        </Field>
-                      </div>
-                      <div className="col-span-2 flex flex-col gap-2">
-                        <span className={`${T.small} text-muted`}>Line items (optional)</span>
-                        {form.lines.map((l, i) => (
-                          <div key={i} className="grid grid-cols-[1fr_112px_40px] gap-2">
-                            <input aria-label={`Line ${i + 1} description`} className={INPUT} value={l.description} onChange={(e) => patch({ lines: form.lines.map((x, j) => (j === i ? { ...x, description: e.target.value } : x)) })} />
-                            <input aria-label={`Line ${i + 1} amount`} className={INPUT} inputMode="decimal" value={l.amount} onChange={(e) => patch({ lines: form.lines.map((x, j) => (j === i ? { ...x, amount: e.target.value } : x)) })} />
-                            <button type="button" aria-label={`Remove line ${i + 1}`} onClick={() => patch({ lines: form.lines.filter((_, j) => j !== i) })} className="inline-flex size-10 cursor-pointer items-center justify-center rounded-full text-muted hover:text-paper">
-                              <Icon name="x" />
-                            </button>
-                          </div>
-                        ))}
-                        <Button kind="text" className="self-start" onClick={() => patch({ lines: [...form.lines, { description: "", amount: "" }] })}><Icon name="plus" /> Add a line</Button>
-                      </div>
-                    </section>
-                  )}
-                </div>
-              )}
-            </div>
-
-            <footer className="flex shrink-0 items-center gap-4 border-t border-white/[0.08] px-6 py-4">
-              <p className={`${T.small} min-w-0 flex-1 text-muted`} aria-live="polite">
-                {error ? <span className="font-semibold text-bad">{error}</span>
-                  : file ? "Nothing is decided ahead of time."
-                  : typing ? (parsed ? "Nothing is decided ahead of time." : "Vendor, invoice number, amount and due date are needed.")
-                  : "Add a file to start."}
-              </p>
-              <Button kind="primary" disabled={!canRun} onClick={run}>Read and check <Icon name="arrow" /></Button>
-            </footer>
-          </>
-        )}
+          <footer className="flex shrink-0 items-center gap-4 border-t border-white/[0.08] px-6 py-4">
+            <p className={`${T.small} min-w-0 flex-1 text-muted`} aria-live="polite">
+              {error ? <span className="font-semibold text-bad">{error}</span>
+                : file ? "Nothing is decided ahead of time."
+                : typing ? (parsed ? "Nothing is decided ahead of time." : "Vendor, invoice number, amount and due date are needed.")
+                : "Add a file to start."}
+            </p>
+            <Button kind="primary" disabled={!canRun} onClick={run}>Read and check <Icon name="arrow" /></Button>
+          </footer>
+        </>
       </aside>
     </Overlay>
   );
 }
 
-function Result({ bill, onOpen, onAnother }: { bill: BillView; onOpen(): void; onAnother(): void }) {
-  const story = storyOf(bill);
-  return (
-    <div className="flex min-h-0 flex-1 flex-col gap-4 overflow-y-auto px-6 pb-6" aria-live="polite">
-      <div className="flex flex-col gap-4 rounded-[12px] bg-bar p-6">
-        <div className="flex items-start justify-between gap-4">
-          <Stamp status={bill.status} />
-          <Money value={bill.amount} struck={bill.status === "BLOCKED"} className={T.title} />
-        </div>
-        <div>
-          <p className={T.title}>{story.headline}</p>
-          <p className={`${T.small} text-muted`}>{bill.vendor_name ?? "Unknown vendor"} · {bill.property_name ?? "No property yet"}</p>
-        </div>
-        <p className={T.body}>{story.next}</p>
-        <div className="flex flex-wrap gap-2 pt-2">
-          <Button kind="solid" onClick={onOpen}>Open the bill <Icon name="arrow" /></Button>
-          <Button kind="secondary" onClick={onAnother}>Upload another</Button>
-        </div>
-      </div>
-    </div>
-  );
-}

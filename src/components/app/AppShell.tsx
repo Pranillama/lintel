@@ -10,6 +10,7 @@ import { useEffect, type ReactNode } from "react";
 import { Icon, Money, T } from "../desk/ui";
 import { useApp } from "./AppProvider";
 import { UploadDrawer } from "./UploadDrawer";
+import { LiveStory } from "../story/LiveStory";
 
 const NAV = [
   { href: "/inbox", label: "Inbox", match: ["/inbox", "/bills"] },
@@ -26,7 +27,7 @@ export function isTyping(t: EventTarget | null): boolean {
 
 export function AppShell({ children }: { children: ReactNode }) {
   const path = usePathname();
-  const { data, uploadOpen, setUploadOpen } = useApp();
+  const { data, uploadOpen, setUploadOpen, story, closeStory } = useApp();
   const t = data.loading ? undefined : data.totals;
   const on = (prefixes: string[]) => prefixes.some((p) => path === p || path.startsWith(`${p}/`));
 
@@ -87,6 +88,7 @@ export function AppShell({ children }: { children: ReactNode }) {
       </header>
       <div className="flex min-h-0 flex-1 flex-col">{children}</div>
       {uploadOpen && <UploadDrawer onClose={() => setUploadOpen(false)} />}
+      {story && <LiveStory key={story.key} run={story} onClose={closeStory} />}
     </div>
   );
 }

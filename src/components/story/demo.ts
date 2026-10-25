@@ -79,7 +79,7 @@ const DEMOS: Record<DemoEnding, Demo> = {
       [row("✓ 10:41:15 MATCHED BY ACCOUNT", "1.00"), "plain", { pause: 450, lcd: "MATCHING PROPERTY…", ch: 1, li: "Right property (1.00)", mark: "ok" }],
       ["    → BAYVIEW COMMONS", "mut"],
       [row("✓ 10:41:16 DUPLICATE CHECK", "CLEAR"), "plain", { pause: 400, lcd: "CHECKING DUPLICATES…", ch: 1, li: "Not a duplicate", mark: "ok" }],
-      [row("✓ 10:41:16 $2,290.40 VS $2,340.00 AVG", "−2.1%"), "plain", { pause: 650, lcd: "COMPARING HISTORY…", ch: 1, li: "−2.1% vs usual", mark: "ok" }],
+      [row("✓ 10:41:16 $2,290 VS $2,340 AVG", "−2.1%"), "plain", { pause: 650, lcd: "COMPARING HISTORY…", ch: 1, li: "−2.1% vs usual", mark: "ok" }],
       ["    RULE: HOLD ABOVE +25%", "mut"],
       [row("– 10:41:16 VENDOR CHECK", "NOT NEEDED"), "mut", { pause: 200, lcd: "VENDOR CHECK…", ch: 1, li: "Vendor check not needed", mark: "sk" }],
       [row("✓ 10:41:16 ENROLLED UTILITY", "AUTO-PAY"), "plain", { pause: 400, lcd: "APPLYING POLICY…", ch: 1, li: "Auto-pay allowed", mark: "ok" }],

@@ -60,8 +60,8 @@ export interface ReceiptStoryProps {
   lcdEnd: string;
   /** While every arrived line has printed but more are expected: what the display says and which item is in progress. */
   waiting?: { lcd: string; item?: string } | null;
-  /** Wall-clock ms (Date.now). Omit to time ELAPSED by the print schedule, as the scripted demo does. */
-  clock?: { start: number; stop: number | null };
+  /** Wall-clock ms (Date.now). ELAPSED runs from start until `stop`, or until the story completes. Omit to time it by the print schedule, as the scripted demo does. */
+  clock?: { start: number; stop?: number };
   cta?: ReactNode;
   corner?: ReactNode;
   tag?: string;
@@ -107,6 +107,7 @@ export function ReceiptStory(props: ReceiptStoryProps) {
     const sched: Slot[] = [];
     let tEnd = START;
     let stampAt: number | null = null;
+    let completedAt: number | null = null;
     let raf = 0;
 
     const setText = (el: Element | null | undefined, text: string) => { if (el && el.textContent !== text) el.textContent = text; };
@@ -129,7 +130,10 @@ export function ReceiptStory(props: ReceiptStoryProps) {
         sched.push({ line, start, dur, h: HEIGHT[line.cls] ?? 21 });
         tEnd = start + dur;
       }
-      if (stampAt === null && p.complete && p.stamp && sched.length === p.lines.length) stampAt = tEnd + 450;
+      if (stampAt === null && p.complete && p.stamp && sched.length === p.lines.length) {
+        stampAt = tEnd + 450;
+        completedAt = Date.now();
+      }
       const printEnd = stampAt === null ? null : stampAt - 450;
 
       let h = 56;
@@ -221,7 +225,7 @@ export function ReceiptStory(props: ReceiptStoryProps) {
         el.classList.toggle(s.past, i < active);
       });
       setText(rulesRef.current, String(sched.filter((x) => x.line.rule && tt >= x.start + x.dur).length));
-      const secs = p.clock ? ((p.clock.stop ?? Date.now()) - p.clock.start) / 1000 : (Math.max(0, Math.min(tt, printEnd ?? tt) - START)) / 1000;
+      const secs = p.clock ? ((p.clock.stop ?? completedAt ?? Date.now()) - p.clock.start) / 1000 : (Math.max(0, Math.min(tt, printEnd ?? tt) - START)) / 1000;
       setText(elapsedRef.current, `${Math.max(0, secs).toFixed(1)}s`);
       const c = ctaRef.current;
       if (c) {

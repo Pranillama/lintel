@@ -20,6 +20,7 @@ import { useApp } from "./AppProvider";
 import { Empty, Loading, Screen, ScreenHeader, Stamp, WhoChip } from "./kit";
 import { actorOf, confidenceWord, eventNote, eventTitle, type ActorKind } from "./plain";
 import { ReceiptTicket } from "./ReceiptTicket";
+import { LiveStory } from "../story/LiveStory";
 
 /** bill id -> the status its ticket was last printed with, this session. A new status prints again. */
 const printed = new Map<string, string>();
@@ -40,6 +41,7 @@ function BillDetail({ bill }: { bill: BillView }) {
   const [replay, setReplay] = useState(0);
   const [progress, setProgress] = useState({ done: 0, total: 0, stamped: false });
   const [tab, setTab] = useState<Tab>("checked");
+  const [story, setStory] = useState(false);
   const animate = !reduced && printed.get(bill.id) !== bill.status;
   const ready = !animate || progress.stamped;
 
@@ -74,6 +76,7 @@ function BillDetail({ bill }: { bill: BillView }) {
             ) : (
               <Button kind="text" disabled={reduced} title={reduced ? "Motion is reduced on this device" : undefined} onClick={() => { printed.delete(bill.id); setProgress({ done: 0, total: 0, stamped: false }); setReplay((r) => r + 1); }}>Print again</Button>
             )}
+            <Button kind="text" aria-haspopup="dialog" onClick={() => setStory(true)}>Watch the full story</Button>
           </div>
         </section>
 
@@ -107,6 +110,7 @@ function BillDetail({ bill }: { bill: BillView }) {
           </div>
         </section>
       </div>
+      {story && <LiveStory replay={bill} onClose={() => setStory(false)} />}
     </Screen>
   );
 }
