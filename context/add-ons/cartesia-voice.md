@@ -1,6 +1,6 @@
 # Add-on: Cartesia two-way voice agent
 
-Research spec, ready to build. No code has been written for it. Researched Oct 25, 2026 against the code on `main` at `8f0f218`.
+Research spec, written Oct 25, 2026 against `main` at `8f0f218`. Option A (read-only reviewer tools, no browser panel) is implemented separately. The browser panel is deferred; see the note under the rules.
 
 This is a **conversation, not narration**. People talk to Lintel and Lintel talks back:
 
@@ -10,6 +10,8 @@ This is a **conversation, not narration**. People talk to Lintel and Lintel talk
 Cartesia **Managed Agents** handle the listening, turn-taking, interruptions, speech (Sonic), and the LLM. Lintel exposes **read-only tools** that return deterministic facts.
 
 > The model reads the bill. Code decides whether it gets paid. **The voice agent can only repeat what code decided. It has no tool that approves, rejects, assigns, or pays.** A person owns the exceptions.
+
+> **Option A is the current cut.** The browser panel in §5.4 is deferred. PR #27 removed `Desk.tsx`, `useDesk.ts`, `TopBar.tsx`, and `LiveDesk.tsx`, so those hooks are stale. Do not add client tools until the desk API is chosen again. Setup is `scripts/cartesia-setup.mjs`. A phone number is optional (`--phone`). Steps for Pranil are in `context/add-ons/cartesia-voice-setup.md`.
 
 Cross-links: `context/master-spec.md` §4 (AI allowed vs forbidden), §5.2–§5.3 (status, approver, why-sentences); `context/ui-context.md` §1; `context/ai-workflow-rules.md` §2, §8; `context/add-ons/capital-one-payments.md` (payment status the agent can report); `context/add-ons/portfolio-ask.md` (typed Q&A; its "no voice" non-goal is about that drawer only).
 
@@ -150,7 +152,11 @@ Created once by `scripts/cartesia-agents.mjs` (run by hand; prints the agent ids
   - Tools: `lookup_my_invoice`, `get_call_bill`, `end_call`.
   - Prompt adds: never discuss other vendors or internal rules, never promise a payment date the tool did not return, and offer a callback from a person for anything else.
 
-### 5.4 Browser voice panel (Piyush lane, `src/components/desk/voice/`)
+### 5.4 Browser voice panel (deferred)
+
+PR #27 removed the desk files this section was written against (`Desk.tsx`, `useDesk.ts`, `TopBar.tsx`, `LiveDesk.tsx`). Leave this panel unbuilt until the desk API is chosen again. The notes below are the original plan, not the current build.
+
+### 5.4a Original browser panel plan (Piyush lane, `src/components/desk/voice/`)
 
 - **`useVoiceAgent.ts`** (~150–200 lines, no new dependency):
   1. Call the Convex action `startVoiceSession()`. It mints `POST /access-token` `{grants:{agent:true}, expires_in:300}` and returns `{ token, agent_id }`.
