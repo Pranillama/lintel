@@ -18,6 +18,8 @@ export interface ReceiptPrinterProps {
   response: BillsResponse | undefined;
   /** Scroll distance that prints the whole tab. */
   trackHeight?: string;
+  /** When set, the end of the tab offers "Open the AP desk" (the landing page scrolls to the desk). */
+  onOpenDesk?: () => void;
 }
 
 interface SceneApi {
@@ -29,7 +31,7 @@ interface SceneApi {
  * Scroll-driven thermal printer. Scrolling through the track feeds the tab out of the printer
  * line by line. Every line comes from `buildReceiptLines(response)`; nothing is hard-coded.
  */
-export function ReceiptPrinter({ response, trackHeight = "900vh" }: ReceiptPrinterProps) {
+export function ReceiptPrinter({ response, trackHeight = "900vh", onOpenDesk }: ReceiptPrinterProps) {
   const trackRef = useRef<HTMLElement>(null);
   const stageRef = useRef<HTMLDivElement>(null);
   const fallbackRef = useRef<HTMLDivElement>(null);
@@ -325,8 +327,18 @@ export function ReceiptPrinter({ response, trackHeight = "900vh" }: ReceiptPrint
         </div>
 
         {ended && (
-          <div className="absolute bottom-7 left-1/2 -translate-x-1/2">
-            <button type="button" onClick={replay} className="rounded-full px-6 py-3 text-sm font-semibold focus-visible:outline-2 focus-visible:outline-offset-2" style={{ background: C.lime, color: C.bar, outlineColor: C.lime }}>
+          <div className="absolute bottom-7 left-1/2 flex -translate-x-1/2 gap-2.5">
+            {onOpenDesk && (
+              <button type="button" onClick={onOpenDesk} className="rounded-full px-6 py-3 text-sm font-semibold focus-visible:outline-2 focus-visible:outline-offset-2" style={{ background: C.lime, color: C.bar, outlineColor: C.lime }}>
+                Open the AP desk ↓
+              </button>
+            )}
+            <button
+              type="button"
+              onClick={replay}
+              className="rounded-full px-6 py-3 text-sm font-semibold focus-visible:outline-2 focus-visible:outline-offset-2"
+              style={onOpenDesk ? { background: "transparent", color: C.paper, boxShadow: `inset 0 0 0 1.5px ${C.raised}`, outlineColor: C.lime } : { background: C.lime, color: C.bar, outlineColor: C.lime }}
+            >
               Print it again
             </button>
           </div>
