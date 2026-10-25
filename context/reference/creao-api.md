@@ -23,7 +23,7 @@ Never expose `capi_` or `cr_sk_` keys in browser client code. Call CREAO from Co
 
 ## 2. Path A Implementation: `agent.creao.ai/api/v1/runs` (Async Poll Pattern)
 
-For local development at Cal Hacks, **use 2-second polling instead of `webhookUrl`** (because `webhookUrl` rejects `localhost` and private IPs unless tunneled via ngrok/cloudflared).
+For local development at Cal Hacks, **poll instead of using `webhookUrl`** (Lintel polls every 4 seconds; every status check counts against the per-key rate limit) (because `webhookUrl` rejects `localhost` and private IPs unless tunneled via ngrok/cloudflared).
 
 ### Step A: Start a Run (`POST https://agent.creao.ai/api/v1/runs`)
 ```typescript
