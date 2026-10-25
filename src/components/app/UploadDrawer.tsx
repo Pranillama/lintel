@@ -153,7 +153,7 @@ export function UploadDrawer({ onClose }: { onClose(): void }) {
                   onDragOver={(e) => { e.preventDefault(); setOver(true); }}
                   onDragLeave={() => setOver(false)}
                   onDrop={(e) => { e.preventDefault(); setOver(false); pick(e.dataTransfer.files[0]); }}
-                  className={`flex h-48 w-full cursor-pointer flex-col items-center justify-center gap-2 rounded-[12px] border-[1.5px] border-dashed text-center outline-none focus-visible:ring-2 focus-visible:ring-paper ${over ? "border-lime bg-lime/5" : "border-muted/50 hover:border-paper/70"}`}
+                  className={`flex h-48 w-full shrink-0 cursor-pointer flex-col items-center justify-center gap-2 rounded-[12px] border-[1.5px] border-dashed text-center outline-none focus-visible:ring-2 focus-visible:ring-paper ${over ? "border-lime bg-lime/5" : "border-muted/50 hover:border-paper/70"}`}
                 >
                   <Icon name="upload" className="size-6 text-paper" />
                   <span className={`${T.body} font-semibold`}>Drop the bill here</span>
@@ -162,7 +162,7 @@ export function UploadDrawer({ onClose }: { onClose(): void }) {
               )}
 
               {!file && (
-                <div className="rounded-[10px] bg-bar">
+                <div className="shrink-0 rounded-[10px] bg-bar">
                   <button type="button" aria-expanded={typing} onClick={() => setTyping((t) => !t)}
                     className={`${T.small} flex w-full cursor-pointer items-center gap-2 rounded-[10px] px-4 py-3 text-left text-muted outline-none hover:text-paper focus-visible:ring-2 focus-visible:ring-paper`}>
                     <Icon name="chevron" className={typing ? "" : "-rotate-90"} /> No file? Type it in
