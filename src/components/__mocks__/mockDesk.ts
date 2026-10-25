@@ -15,10 +15,10 @@ import { decide } from "@/engine/decide";
 import { humanRefusal } from "@/engine/human";
 import { computeTotals } from "@/engine/totals";
 import { normalizeForm } from "@/intake/normalizeForm";
-import { matchBill } from "@/match/matchBill";
+import { matchBill, matchNames } from "@/match/matchBill";
 import { OPENING_BATCH } from "@/seed/demo-inputs";
 import { ACCOUNTS, HISTORY, PROPERTIES, VENDORS } from "@/seed/portfolio";
-import { POLICY, POLICY_TEXT, REAL_VS_SIMULATED, SEATS_LINE } from "@/seed/policy";
+import { POLICY_TEXT, REAL_VS_SIMULATED, SEATS_LINE } from "@/seed/policy";
 import type {
   AddressAlias,
   AuditEvent,
@@ -110,14 +110,11 @@ async function pipeline(input: ProcessBillInput, id: string, ts: string, state: 
   const source = input.kind;
   const source_label = input.kind === "FEED" ? input.feed_label : input.kind === "DOCUMENT" ? input.document.filename : null;
   const audit = await appendEvents(null, decisionAuditDrafts({ bill_id: id, ts, source, source_label, extracted, match, crs: NOT_RUN, decision }));
-  const trusted = match.property_id && match.confidence >= POLICY.MIN_MATCH_CONFIDENCE;
   const bill: BillView = {
     id, created_at: ts, source, source_label, extracted, match, crs: NOT_RUN, decision,
     status: decision.status, resolved_by: "AUTO",
     payment: decision.status === "CLEARED" && decision.rail ? payment(id, decision.rail) : null,
-    vendor_name: VENDORS.find((v) => v.id === match.vendor_id)?.name ?? extracted.vendor_name.value,
-    // Intended backend behavior: name the property once the match is trusted (flagged to the backend lane).
-    property_name: trusted ? PROPERTIES.find((p) => p.id === match.property_id)?.name ?? null : null,
+    ...matchNames(extracted, match, ledger),
     amount: extracted.total_amount.value,
     audit, investigation: null,
   };

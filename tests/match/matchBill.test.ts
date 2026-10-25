@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { normalizeForm } from "@/intake/normalizeForm";
-import { matchBill } from "@/match/matchBill";
+import { matchBill, matchNames } from "@/match/matchBill";
 import { normalizeAddressKey } from "@/shared/normalize";
 import {
   ALIAS_TWIN,
@@ -438,5 +438,30 @@ describe("matchBill", () => {
       ["PROP-A", 1],
       ["PROP-B", 0.8],
     ]);
+  });
+});
+
+describe("matchNames", () => {
+  function namesFor(key: string, ledger: LedgerSnapshot = seedLedger()) {
+    const input = OPENING_BATCH.find((row) => row.key === key);
+    if (!input) throw new Error(`missing ${key}`);
+    const extracted = normalizeForm(input.form, "FEED");
+    return matchNames(extracted, matchBill(extracted, ledger), ledger);
+  }
+
+  it("names the property once the match is trusted", () => {
+    expect(namesFor("BILL-101").property_name).toBe("Bayview Commons");
+    expect(namesFor("BILL-103").property_name).toBe("Shattuck Student Living");
+  });
+
+  it("leaves the property unnamed below the trust floor", () => {
+    expect(namesFor("BILL-104").property_name).toBeNull();
+    expect(namesFor("BILL-104", seedLedger([LOMBARD_ALIAS])).property_name).toBe("Telegraph Hill Lofts");
+  });
+
+  it("falls back to the extracted vendor name for an unknown vendor", () => {
+    const extracted = normalizeForm({ ...OPENING_BATCH[0].form, vendor_name: "Nobody Co", account_number: "" }, "FORM");
+    const ledger = seedLedger();
+    expect(matchNames(extracted, matchBill(extracted, ledger), ledger).vendor_name).toBe("Nobody Co");
   });
 });

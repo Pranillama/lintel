@@ -1,7 +1,7 @@
 import { v } from "convex/values";
 import { internalMutation } from "../_generated/server";
 import { appendEvents } from "../../src/audit/append";
-import { matchBill } from "../../src/match/matchBill";
+import { matchBill, matchNames } from "../../src/match/matchBill";
 import type { AuditEvent } from "../../src/types/bill";
 import { billById, eventsFor, loadLedger, readBill, saveBill, saveEvents } from "../lib/records";
 
@@ -36,7 +36,7 @@ export const commitMatch = internalMutation({
       },
     ];
     await saveEvents(ctx, await appendEvents(previous.at(-1) ?? null, drafts));
-    const next = { ...bill, match };
+    const next = { ...bill, match, ...matchNames(bill.extracted, match, ledger) };
     await saveBill(ctx, next);
     return next;
   },
