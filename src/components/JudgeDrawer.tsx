@@ -2,12 +2,13 @@
 
 import { useState, type DragEvent, type KeyboardEvent } from "react";
 import type { BillFormInput, BillView, LineItem, UploadedDocument, UsageUnit } from "@/types/bill";
-import { ALIAS_TWIN, JUDGE_CHIPS } from "@/seed/demo-inputs";
+import { ALIAS_TWIN, JUDGE_CHIPS, LINE_SUM_FIXTURE } from "@/seed/demo-inputs";
 import { formatUsd } from "@/engine/format";
 import { errorMessage, type JudgeDrawerProps } from "./desk";
 import { StatusChip } from "./StatusChip";
 
-const CHIPS = [...JUDGE_CHIPS, ALIAS_TWIN];
+// Wireframe order: the four judge chips, the line-sum fixture, then the alias twin.
+const CHIPS = [...JUDGE_CHIPS, LINE_SUM_FIXTURE, ALIAS_TWIN];
 const UNITS: UsageUnit[] = ["KWH", "CCF", "THERM", "YD3"];
 const MEDIA_TYPES: UploadedDocument["media_type"][] = ["application/pdf", "image/png", "image/jpeg", "image/webp"];
 const MAX_BYTES = 8 * 1024 * 1024;
