@@ -144,19 +144,30 @@ async function listAll(path, extra) {
 }
 
 async function chooseModel() {
-  if (process.env.CARTESIA_AGENT_MODEL) return process.env.CARTESIA_AGENT_MODEL;
   const listed = await cartesia("GET", "/v1/agents/models");
   const rows = Array.isArray(listed) ? listed : Array.isArray(listed.data) ? listed.data : [];
-  const ids = rows
-    .map((row) => (typeof row === "string" ? row : row && typeof row.id === "string" ? row.id : ""))
+  const entries = rows
+    .map((row) =>
+      typeof row === "string"
+        ? { id: row, fixedTemperature: undefined }
+        : row && typeof row.id === "string"
+          ? { id: row.id, fixedTemperature: typeof row.fixed_temperature === "number" ? row.fixed_temperature : undefined }
+          : null,
+    )
     .filter(Boolean);
+  if (process.env.CARTESIA_AGENT_MODEL) {
+    const match = entries.find((e) => e.id === process.env.CARTESIA_AGENT_MODEL);
+    return { id: process.env.CARTESIA_AGENT_MODEL, fixedTemperature: match?.fixedTemperature };
+  }
+  const ids = entries.map((e) => e.id);
   const preferred = [PREFERRED_MODEL_ID, "gpt-5.4-mini"];
   const picked = preferred.find((id) => ids.includes(id)) ?? ids[0];
   if (!picked) {
     fail("GET /v1/agents/models returned no ids. Set CARTESIA_AGENT_MODEL. The response shape may differ from the docs.");
   }
+  const match = entries.find((e) => e.id === picked);
   console.error(`Using model ${picked}`);
-  return picked;
+  return { id: picked, fixedTemperature: match?.fixedTemperature };
 }
 
 const tools = [
@@ -168,7 +179,8 @@ const toolIds = [];
 for (const tool of tools) {
   const found = existingTools.find((row) => row && row.name === tool.name && row.type === tool.type);
   if (found && typeof found.id === "string") {
-    const updated = await cartesia("PATCH", `/v1/agents/tools/${found.id}`, tool);
+    const { type: _type, ...patchTool } = tool;
+    const updated = await cartesia("PATCH", `/v1/agents/tools/${found.id}`, patchTool);
     toolIds.push(typeof updated.id === "string" ? updated.id : found.id);
     console.error(`Updated tool ${tool.name}`);
   } else {
@@ -180,7 +192,12 @@ for (const tool of tools) {
 }
 
 const chosenModel = await chooseModel();
-const agentBody = buildReviewerAgentBody({ toolIds, modelId: chosenModel, voiceId });
+const agentBody = buildReviewerAgentBody({
+  toolIds,
+  modelId: chosenModel.id,
+  voiceId,
+  temperature: chosenModel.fixedTemperature,
+});
 let agentId = process.env.CARTESIA_REVIEWER_AGENT_ID ?? "";
 if (!agentId) {
   const agents = await listAll("/v1/agents", { q: REVIEWER_NAME });
@@ -191,10 +208,7 @@ if (!agentId) {
 
 let agent;
 if (agentId) {
-  agent = await cartesia("PATCH", `/v1/agents/${agentId}`, {
-    ...agentBody,
-    version_description: "Read-only Lintel reviewer tools",
-  });
+  agent = await cartesia("PATCH", `/v1/agents/${agentId}`, agentBody);
   console.error(`Updated agent ${agentId}`);
 } else {
   agent = await cartesia("POST", "/v1/agents", agentBody);
@@ -206,6 +220,6 @@ if (agentId) {
 console.log(JSON.stringify({
   agent_id: agentId,
   tool_ids: toolIds,
-  model_id: chosenModel,
+  model_id: chosenModel.id,
   voice_id: voiceId,
 }, null, 2));

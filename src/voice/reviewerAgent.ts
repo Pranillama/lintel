@@ -211,7 +211,8 @@ export function buildReviewerClientTools(): ClientToolBody[] {
   ];
 }
 
-export function buildReviewerAgentBody(input: { toolIds: string[]; modelId: string; voiceId: string }): ReviewerAgentBody {
+export function buildReviewerAgentBody(input: { toolIds: string[]; modelId: string; voiceId: string; temperature?: number }): ReviewerAgentBody {
+  const temperature = input.temperature ?? (input.modelId === "claude-sonnet-5" || input.modelId === "claude-haiku-5.5" ? 1 : 0.2);
   return {
     name: REVIEWER_NAME,
     description: "Read-only reviewer. Explains bills. Cannot approve, reject, or pay.",
@@ -219,7 +220,7 @@ export function buildReviewerAgentBody(input: { toolIds: string[]; modelId: stri
       instructions: REVIEWER_INSTRUCTIONS,
       initial_message: REVIEWER_INITIAL_MESSAGE,
       timezone: "America/Los_Angeles",
-      model: { id: input.modelId, temperature: 0.2, max_output_tokens: 300 },
+      model: { id: input.modelId, temperature, max_output_tokens: 300 },
       language: { primary: "en" },
       audio: {
         input: { keyterms: REVIEWER_KEYTERMS },
