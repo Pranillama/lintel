@@ -2,14 +2,24 @@ import { v } from "convex/values";
 import { internalAction, internalMutation, internalQuery } from "../_generated/server";
 import { appendEvents } from "../../src/audit/append";
 import { investigate } from "../../src/agents/investigator/investigate";
+import { nextInvestigationStart } from "../../src/agents/investigator/spacing";
 import { POLICY_TEXT } from "../../src/seed/policy";
 import type { AuditEvent, InvestigationBrief, InvestigationContext } from "../../src/types/bill";
 import { billById, eventsFor, loadLedger, readBill, saveBrief, saveEvents } from "../lib/records";
 import { internal } from "../_generated/api";
 
+/** Stores a PENDING brief and returns how long to wait before running it (CREAO spacing; 0 without CREAO). */
 export const markPending = internalMutation({
   args: { billId: v.string(), ts: v.string() },
-  handler: async (ctx, args) => {
+  handler: async (ctx, args): Promise<number> => {
+    const now = Date.now();
+    let start = now;
+    if (process.env.CREAO_API_KEY?.trim() && process.env.CREAO_AGENT_ID?.trim()) {
+      // One transaction, so two bills landing together still get different slots.
+      const recent = await ctx.db.query("investigations").order("desc").take(10);
+      const planned = recent.map((row) => Date.parse((JSON.parse(row.record) as InvestigationBrief).started_at));
+      start = nextInvestigationStart(now, planned.filter((t) => !Number.isNaN(t)));
+    }
     const brief: InvestigationBrief = {
       bill_id: args.billId,
       status: "PENDING",
@@ -20,11 +30,12 @@ export const markPending = internalMutation({
       creao_run_id: null,
       creao_share_url: null,
       error: null,
-      started_at: args.ts,
+      started_at: start === now ? args.ts : new Date(start).toISOString(),
       completed_at: null,
       draft_sent: false,
     };
     await saveBrief(ctx, brief);
+    return start - now;
   },
 });
 
