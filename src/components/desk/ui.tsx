@@ -9,7 +9,7 @@
  * Red = blocked / failed / error. Status is never color alone: icon + word.
  * Type: 12 / 14 / 16 / 24 / 40. Weights 400 / 600. Radius 16 / 10 / full. Spacing on 4px.
  */
-import { useState, type ButtonHTMLAttributes, type ReactNode } from "react";
+import { useEffect, useRef, type ButtonHTMLAttributes, type ReactNode } from "react";
 import { formatUsd } from "@/engine/format";
 import type { BillStatus } from "@/types/bill";
 import { STATUS_LABEL } from "./contract";
@@ -127,22 +127,55 @@ export function Button({ kind = "secondary", className = "", children, ...rest }
   );
 }
 
-/** A labelled row that opens in place. Used for checks and history. */
-export function Disclosure({ summary, children, defaultOpen = false }: { summary: ReactNode; children: ReactNode; defaultOpen?: boolean }) {
-  const [open, setOpen] = useState(defaultOpen);
+/**
+ * Extra information opens here, never by expanding a card. Native <dialog> gives the
+ * focus trap, Esc and the top layer; a click on the backdrop closes it too.
+ * Mount it to open it; unmounting returns focus to whatever opened it.
+ */
+export function Modal({ title, sub, aside, footer, onClose, children }: {
+  title: ReactNode;
+  sub?: ReactNode;
+  /** Right side of the header: tabs, tags, status. */
+  aside?: ReactNode;
+  /** Pinned under the scrolling body, e.g. the Send action. */
+  footer?: ReactNode;
+  onClose(): void;
+  children: ReactNode;
+}) {
+  const ref = useRef<HTMLDialogElement>(null);
+  useEffect(() => {
+    const dialog = ref.current;
+    const opener = document.activeElement instanceof HTMLElement ? document.activeElement : null;
+    dialog?.showModal();
+    return () => {
+      dialog?.close();
+      opener?.focus();
+    };
+  }, []);
   return (
-    <div>
-      <button
-        type="button"
-        aria-expanded={open}
-        onClick={() => setOpen((o) => !o)}
-        className="flex h-12 w-full cursor-pointer items-center gap-2 rounded-[10px] text-left outline-none focus-visible:ring-2 focus-visible:ring-paper"
-      >
-        <Icon name="chevron" className={`text-muted transition-transform ${open ? "" : "-rotate-90"}`} />
-        <span className={`${T.small} min-w-0 flex-1`}>{summary}</span>
-      </button>
-      {open && <div className="pb-4 pl-6">{children}</div>}
-    </div>
+    <dialog
+      ref={ref}
+      aria-label={typeof title === "string" ? title : undefined}
+      onCancel={(e) => { e.preventDefault(); onClose(); }}
+      onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}
+      className="m-auto max-h-[min(760px,calc(100vh-48px))] w-[min(880px,calc(100vw-32px))] overflow-hidden rounded-[16px] border-0 bg-card p-0 text-paper backdrop:bg-bar/75"
+    >
+      <div className="relative flex max-h-[inherit] flex-col">
+        {/* Close stays top-right even when the aside wraps under the title on narrow screens. */}
+        <button type="button" onClick={onClose} aria-label="Close" className="absolute right-4 top-5 inline-flex size-10 cursor-pointer items-center justify-center rounded-full text-muted outline-none hover:text-paper focus-visible:ring-2 focus-visible:ring-paper">
+          <Icon name="close" />
+        </button>
+        <header className="flex shrink-0 flex-wrap items-start gap-x-4 gap-y-3 border-b border-white/[0.08] pb-4 pl-6 pr-16 pt-6">
+          <div className="min-w-0 flex-1 basis-[280px]">
+            <h2 className={T.title}>{title}</h2>
+            {sub && <p className={`${T.small} mt-1 text-muted`}>{sub}</p>}
+          </div>
+          {aside && <div className="flex flex-wrap items-center gap-2">{aside}</div>}
+        </header>
+        <div className="min-h-0 flex-1 overflow-y-auto px-6 py-5">{children}</div>
+        {footer && <footer className="flex shrink-0 flex-wrap items-center gap-3 border-t border-white/[0.08] px-6 py-4">{footer}</footer>}
+      </div>
+    </dialog>
   );
 }
 

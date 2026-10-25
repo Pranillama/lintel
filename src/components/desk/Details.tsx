@@ -1,14 +1,10 @@
 "use client";
 
-/**
- * Full-width Details under the story cards: every check, and the hash-chained
- * history. Wide rows so nothing wraps one word per line.
- */
-import { forwardRef } from "react";
+/** Checks and history for one bill. Wide rows in a modal, so nothing wraps one word per line. */
 import type { AuditAction, AuditEvent, BillView, CheckOutcome, CheckResult } from "@/types/bill";
 import { actorFamily, CHECK_LABEL } from "./contract";
 import { failedChecks } from "./story";
-import { CARD, Icon, T } from "./ui";
+import { Icon, Modal, T } from "./ui";
 
 export type DetailsTab = "checks" | "history";
 
@@ -69,64 +65,68 @@ function eventTitle(e: AuditEvent): string {
   return ACTION[e.action];
 }
 
-export const Details = forwardRef<HTMLElement, { bill: BillView; tab: DetailsTab; chainIntact: boolean; onTab(tab: DetailsTab): void; onClose(): void }>(
-  function Details({ bill, tab, chainIntact, onTab, onClose }, ref) {
-    const checks = [...bill.decision.checks].sort((a, b) => OUTCOME[a.outcome].rank - OUTCOME[b.outcome].rank);
-    const events = [...bill.audit].sort((a, b) => a.seq - b.seq);
-    const tabBtn = (t: DetailsTab, label: string) => (
-      <button
-        type="button"
-        role="tab"
-        aria-selected={tab === t}
-        onClick={() => onTab(t)}
-        className={`h-10 cursor-pointer rounded-full px-4 text-[14px] font-semibold leading-5 outline-none focus-visible:ring-2 focus-visible:ring-paper ${tab === t ? "bg-paper text-bar" : "text-muted hover:text-paper"}`}
-      >
-        {label}
-      </button>
-    );
-    return (
-      <section ref={ref} aria-label="Details" className={`${CARD} flex scroll-mt-4 flex-col gap-4`}>
-        <div className="flex items-center gap-2" role="tablist">
-          <span className={`${T.label} mr-2 text-muted`}>Details</span>
-          {tabBtn("checks", checksSummary(bill))}
-          {tabBtn("history", `History · ${events.length} entries`)}
-          <span className={`${T.small} ml-auto flex items-center gap-2 ${chainIntact ? "text-ok" : "text-bad"}`}>
+/** Every check and the hash-chained history for one bill, in a modal with two tabs. */
+export function DetailsModal({ bill, tab, chainIntact, onTab, onClose }: { bill: BillView; tab: DetailsTab; chainIntact: boolean; onTab(tab: DetailsTab): void; onClose(): void }) {
+  const checks = [...bill.decision.checks].sort((a, b) => OUTCOME[a.outcome].rank - OUTCOME[b.outcome].rank);
+  const events = [...bill.audit].sort((a, b) => a.seq - b.seq);
+  const tabBtn = (t: DetailsTab, label: string) => (
+    <button
+      type="button"
+      role="tab"
+      aria-selected={tab === t}
+      onClick={() => onTab(t)}
+      className={`h-10 cursor-pointer whitespace-nowrap rounded-full px-4 text-[14px] font-semibold leading-5 outline-none focus-visible:ring-2 focus-visible:ring-paper ${tab === t ? "bg-paper text-bar" : "text-muted hover:text-paper"}`}
+    >
+      {label}
+    </button>
+  );
+  return (
+    <Modal
+      title={bill.vendor_name ?? "Unknown vendor"}
+      sub={
+        <span className="flex flex-wrap items-center gap-x-3 gap-y-1">
+          <span>{bill.extracted.invoice_number.value ?? "No invoice number"}</span>
+          <span className={`flex items-center gap-1.5 ${chainIntact ? "text-ok" : "text-bad"}`}>
             <Icon name={chainIntact ? "check" : "x"} /> Hash chain {chainIntact ? "intact" : "broken"}
           </span>
-          <button type="button" aria-label="Close details" onClick={onClose} className="ml-2 inline-flex size-10 cursor-pointer items-center justify-center rounded-full text-muted outline-none hover:text-paper focus-visible:ring-2 focus-visible:ring-paper">
-            <Icon name="close" />
-          </button>
+        </span>
+      }
+      aside={
+        <div className="flex items-center gap-1 rounded-full bg-bar p-1" role="tablist" aria-label="Details">
+          {tabBtn("checks", `Checks · ${checks.length}`)}
+          {tabBtn("history", `History · ${events.length}`)}
         </div>
-
-        {tab === "checks" ? (
-          <div className="flex flex-col gap-4">
-            <p className={`${T.body} text-muted`}><span className="text-paper">Engine sentence: </span>{bill.decision.why}</p>
-            <ul className="flex flex-col">
-              {checks.map((c) => (
-                <li key={c.id} className="grid grid-cols-[88px_180px_1fr] items-start gap-4 border-t border-white/[0.08] py-3">
-                  <span className="pt-0.5"><OutcomeChip outcome={c.outcome} /></span>
-                  <span className={`${T.body} font-semibold`}>{CHECK_LABEL[c.id]}</span>
-                  <span className={`${T.body} text-muted`}>{humanize(c.rationale)}</span>
-                </li>
-              ))}
-            </ul>
-          </div>
-        ) : (
-          <ol className="flex flex-col">
-            {events.map((e) => (
-              <li key={e.id} className="grid grid-cols-[80px_72px_1fr_96px] items-baseline gap-4 border-t border-white/[0.08] py-2">
-                <time dateTime={e.ts} className="font-mono text-[12px] leading-4 text-muted tabular-nums">{TIME.format(new Date(e.ts))}</time>
-                <span className={`${T.label} ${actorFamily(e.actor) === "HUMAN" ? "text-paper" : "text-muted"}`}>{actorFamily(e.actor)}</span>
-                <span className="flex min-w-0 flex-col">
-                  <span className={`${T.body} font-semibold`}>{eventTitle(e)}</span>
-                  <span className={`${T.small} text-muted`}>{humanize(e.rationale)}</span>
-                </span>
-                <span className="text-right font-mono text-[12px] leading-4 text-muted" title={e.hash}>{e.hash.slice(0, 8)}</span>
+      }
+      onClose={onClose}
+    >
+      {tab === "checks" ? (
+        <div className="flex flex-col gap-4">
+          <p className={`${T.body} text-muted`}><span className="text-paper">Engine sentence: </span>{bill.decision.why}</p>
+          <ul className="flex flex-col">
+            {checks.map((c) => (
+              <li key={c.id} className="grid grid-cols-[88px_1fr] items-start gap-x-4 gap-y-1 border-t border-white/[0.08] py-3 first:border-t-0 first:pt-0 sm:grid-cols-[88px_180px_1fr]">
+                <span className="pt-0.5"><OutcomeChip outcome={c.outcome} /></span>
+                <span className={`${T.body} font-semibold`}>{CHECK_LABEL[c.id]}</span>
+                <span className={`${T.body} col-start-2 text-muted sm:col-start-3`}>{humanize(c.rationale)}</span>
               </li>
             ))}
-          </ol>
-        )}
-      </section>
-    );
-  },
-);
+          </ul>
+        </div>
+      ) : (
+        <ol className="flex flex-col">
+          {events.map((e) => (
+            <li key={e.id} className="grid grid-cols-[72px_1fr] items-baseline gap-4 border-t border-white/[0.08] py-2 first:border-t-0 first:pt-0 sm:grid-cols-[80px_72px_1fr_96px]">
+              <time dateTime={e.ts} className="font-mono text-[12px] leading-4 text-muted tabular-nums">{TIME.format(new Date(e.ts))}</time>
+              <span className={`${T.label} hidden sm:block ${actorFamily(e.actor) === "HUMAN" ? "text-paper" : "text-muted"}`}>{actorFamily(e.actor)}</span>
+              <span className="flex min-w-0 flex-col">
+                <span className={`${T.body} font-semibold`}>{eventTitle(e)}</span>
+                <span className={`${T.small} text-muted`}>{humanize(e.rationale)}</span>
+              </span>
+              <span className="hidden text-right font-mono text-[12px] leading-4 text-muted sm:block" title={e.hash}>{e.hash.slice(0, 8)}</span>
+            </li>
+          ))}
+        </ol>
+      )}
+    </Modal>
+  );
+}

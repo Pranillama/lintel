@@ -1,6 +1,6 @@
 # UI Context
 
-Owner: **Piyush**. One screen, the AP desk at `/`. No other routes for the demo. Judges stand at a shared, loud table for two minutes: everything that matters must be readable from a meter away without clicking. Demo screen is 1440x900; it must not break at 1280x800.
+Owner: **Piyush**. One screen, the AP desk at `/`. No other routes for the demo. Judges stand at a shared, loud table for two minutes: everything that matters must be readable from a meter away without clicking. Demo screen is 1440x900; it must not break at 1280x800. Below 1280 the four cards go two by two, and below 768 they stack.
 
 Data comes only from Convex (`listBills`, `getPortfolio`, `processBill`, `humanResume`, `replayOpening`) through `useConvexDesk`. The UI never computes a status, a total, a percentage, or a why-sentence; it renders what `BillView` and `Totals` say and picks which engine number to quote. Which human controls exist comes from `humanRefusal` (`src/engine/human.ts`), never from the UI.
 
@@ -19,9 +19,8 @@ Data comes only from Convex (`listBills`, `getPortfolio`, `processBill`, `humanR
 │ ┌ 1 Read in ─┐ ┌ 2 Code decided ──────┐ ┌ 3 Agent drafted ──┐ ┌ 4 You decide ─────┐ │
 │ │ fields     │ │ ONE evidence block   │ │ CREAO · RUN id    │ │ next step         │ │
 │ │ (+ conf.)  │ │ chosen by verdict    │ │ summary, draft,   │ │ [Approve as …]    │ │
-│ │            │ │ 8 checks · 1 failed ▾│ │ [Send] Read draft │ │ History · 15 ▾    │ │
+│ │            │ │ 8 checks · 1 failed ›│ │ [Send] Read draft │ │ History · 15 ›    │ │
 │ └────────────┘ └──────────────────────┘ └───────────────────┘ └───────────────────┘ │
-│ Details (full width, collapsed by default): [Checks] [History]   ✓ Hash chain intact │
 └──────────────────────────────────────────────────────────────────────────────────────┘
 ```
 
@@ -32,7 +31,9 @@ Data comes only from Convex (`listBills`, `getPortfolio`, `processBill`, `humanR
 - **Card 2, Code decided:** one evidence block chosen by verdict. Spike: usage bars vs the last 3 bills. Duplicate: already-paid vs this bill side by side. Needs a property: the printed address with the unit marked plus the best guess and its score. Vendor: vendor file, CRS result, signals, auto-pay limit. Line sum: lines vs printed total. Cleared: why it cleared. Learned alias: `address → property`, taught once.
 - **Card 3, Agent drafted:** provider chip and, for CREAO, a quiet `RUN <8 chars>` chip (full id in the tooltip, no link). While running: a skeleton with elapsed seconds. Done: a 3-line summary, the draft subject, `Send` while the bill is HELD or BLOCKED, and `Read draft`. Otherwise it shows the `humanRefusal` text. Cleared bills: "No follow-up needed."
 - **Card 4, You decide:** HELD only. Lime ring, the next-step line, `Approve as {approver}` (the one lime button), `Reject`, an optional note. A bill that needs a property gets `Assign to {best guess}` plus `Another property…` instead of Approve. Cleared bills show the payment rail with a `SIMULATED` tag. Blocked bills say why nothing will be paid.
-- **Details:** the links at the foot of cards 2 and 4 open one full-width section below the cards, on the Checks or History tab. Checks: the engine's sentence, then every check with an icon + word chip (Pass, Hold, Block, Skip) and a one-line detail. History: time, actor (AI / CODE / HUMAN / CRS), event, rationale, hash.
+- **Extra information opens in a modal, never by expanding a card.** One `Modal` (native `<dialog>`: focus trap, `Esc` and a backdrop click close it, focus returns to the opener).
+  - **Details modal:** the links at the foot of cards 2 and 4 open it on the Checks or History tab, with the hash-chain status in the header. Checks: the engine's sentence, then every check with an icon + word chip (Pass, Hold, Block, Skip) and a one-line detail. History: time, actor (AI / CODE / HUMAN / CRS), event, rationale, hash (actor and hash hide below 640px).
+  - **Draft modal:** `Read draft` (or `Read full brief` when there is no draft) shows what the agent found, its findings, and the full draft, with `Send` pinned in the footer under the same rules as the card.
 - **Overlays** (Test a bill, Policy, Real vs simulated) slide in from the right over the story; `Esc` or the scrim closes them.
 
 ## 2. Visual system

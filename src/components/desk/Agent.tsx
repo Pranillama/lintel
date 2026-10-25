@@ -5,7 +5,8 @@ import { useEffect, useState } from "react";
 import { humanRefusal } from "@/engine/human";
 import type { BillView, DraftKind } from "@/types/bill";
 import { errorMessage, type DeskActions } from "./contract";
-import { Button, ErrorLine, Icon, T, Tag } from "./ui";
+import { humanize } from "./Details";
+import { Button, ErrorLine, Icon, Modal, T, Tag } from "./ui";
 
 const DRAFT_LABEL: Record<DraftKind, string> = {
   VENDOR_EMAIL: "Email to vendor",
@@ -61,6 +62,15 @@ export function AgentDraft({ bill, actions }: { bill: BillView; actions: DeskAct
     }
   }
 
+  // Shown in the card and in the draft modal; both reflect the same sent state.
+  const sendControl = brief.draft_sent ? (
+    <span className={`${T.small} inline-flex h-10 items-center gap-2 rounded-full bg-ok/15 px-4 font-semibold text-ok`}><Icon name="check" /> Sent by you</span>
+  ) : refusal === null ? (
+    <Button kind="secondary" disabled={busy} onClick={send}>
+      <Icon name="send" /> {busy ? "Sending…" : "Send"}
+    </Button>
+  ) : null;
+
   return (
     <div className="flex flex-col gap-4" aria-busy={working}>
       {working && (
@@ -74,42 +84,65 @@ export function AgentDraft({ bill, actions }: { bill: BillView; actions: DeskAct
       {brief.status === "FAILED" && <ErrorLine>{brief.error ?? "The investigator did not finish."}</ErrorLine>}
       {brief.status === "DONE" && (
         <>
-          {/* Real briefs run long: three lines here, the rest with the draft. */}
-          <p className={`${T.body} ${open ? "" : "line-clamp-3"}`} title={open ? undefined : brief.summary}>{brief.summary}</p>
-          {!brief.draft && <Button kind="text" className="self-start" onClick={() => setOpen((o) => !o)}>{open ? "Show less" : "Read full brief"}</Button>}
+          {/* Real briefs run long: three lines here, the whole brief in the modal. */}
+          <p className={`${T.body} line-clamp-3`}>{brief.summary}</p>
+          {!brief.draft && (
+            <Button kind="text" aria-haspopup="dialog" className="self-start px-0!" onClick={() => setOpen(true)}>Read full brief</Button>
+          )}
           {brief.draft && (
             <div className="flex flex-col gap-3 border-t border-white/[0.08] pt-4">
               <div className="flex min-w-0 items-start gap-3">
                 <Icon name="doc" className="mt-1 text-muted" />
                 <div className="min-w-0 flex-1">
                   <p className={`${T.body} font-semibold`}>{brief.draft.subject}</p>
-                  <p className={`${T.small} text-muted`}>{DRAFT_LABEL[brief.draft.kind]} to {brief.draft.to}</p>
+                  <p className={`${T.small} text-muted`}>{DRAFT_LABEL[brief.draft.kind]} · {brief.draft.to}</p>
                 </div>
               </div>
-              {open && (
-                <div className={`${T.small} flex flex-col gap-3 rounded-[10px] bg-bar p-4`}>
-                  <p className="whitespace-pre-line">{brief.draft.body}</p>
-                  {brief.findings.length > 0 && (
-                    <ul className="flex list-disc flex-col gap-1 pl-4 text-muted">
-                      {brief.findings.map((f, i) => <li key={i}>{f}</li>)}
-                    </ul>
-                  )}
-                </div>
-              )}
               <div className="flex flex-wrap items-center gap-2">
-                {brief.draft_sent ? (
-                  <span className={`${T.small} inline-flex h-10 items-center gap-2 rounded-full bg-ok/15 px-4 font-semibold text-ok`}><Icon name="check" /> Sent by you</span>
-                ) : refusal === null ? (
-                  <Button kind="secondary" disabled={busy} onClick={send}>
-                    <Icon name="send" /> {busy ? "Sending…" : "Send"}
-                  </Button>
-                ) : null}
-                <Button kind="text" onClick={() => setOpen((o) => !o)}>{open ? "Hide draft" : "Read draft"}</Button>
+                {sendControl}
+                <Button kind="text" aria-haspopup="dialog" onClick={() => setOpen(true)}>Read draft</Button>
               </div>
               {!brief.draft_sent && refusal && <p className={`${T.small} text-muted`}>{refusal}</p>}
             </div>
           )}
           {error && <ErrorLine>{error}</ErrorLine>}
+          {open && (
+            <Modal
+              title={brief.draft ? brief.draft.subject : "Investigator brief"}
+              sub={brief.draft ? `${DRAFT_LABEL[brief.draft.kind]} · ${brief.draft.to}` : bill.vendor_name ?? undefined}
+              aside={<ProviderTags bill={bill} />}
+              footer={
+                brief.draft ? (
+                  <>
+                    {sendControl}
+                    <p className={`${T.small} min-w-0 flex-1 text-muted`}>
+                      {!brief.draft_sent && refusal ? refusal : "Agents draft. People send. Nothing leaves the app (simulated)."}
+                    </p>
+                    {error && <ErrorLine>{error}</ErrorLine>}
+                  </>
+                ) : undefined
+              }
+              onClose={() => setOpen(false)}
+            >
+              <div className="flex flex-col gap-6">
+                <section className="flex flex-col gap-2">
+                  <h3 className={`${T.label} text-muted`}>What the agent found</h3>
+                  <p className={T.body}>{brief.summary}</p>
+                  {brief.findings.length > 0 && (
+                    <ul className={`${T.small} flex list-disc flex-col gap-1 pl-5 text-muted`}>
+                      {brief.findings.map((f, i) => <li key={i}>{humanize(f)}</li>)}
+                    </ul>
+                  )}
+                </section>
+                {brief.draft && (
+                  <section className="flex flex-col gap-2">
+                    <h3 className={`${T.label} text-muted`}>Draft</h3>
+                    <p className={`${T.body} whitespace-pre-line rounded-[10px] bg-bar p-4`}>{brief.draft.body}</p>
+                  </section>
+                )}
+              </div>
+            </Modal>
+          )}
         </>
       )}
     </div>

@@ -11,7 +11,7 @@ import type { BillStatus, BillView, FieldWithConfidence } from "@/types/bill";
 import { AgentDraft, ProviderTags } from "./Agent";
 import type { DeskActions, DeskData } from "./contract";
 import { Decide } from "./Decide";
-import { checksSummary, Details, type DetailsTab } from "./Details";
+import { checksSummary, DetailsModal, type DetailsTab } from "./Details";
 import { PolicySheet, RealVsSimulatedSheet } from "./Drawers";
 import { AssignControls, Evidence, evidenceTitle, PaymentLine } from "./Evidence";
 import { CameInLine } from "./Pieces";
@@ -144,12 +144,7 @@ function Story({ bill, desk }: { bill: BillView; desk: DeskState }) {
   const held = bill.status === "HELD";
   const agent = bill.investigation !== null && (held || bill.status === "BLOCKED" || bill.investigation.draft_sent);
   const [details, setDetails] = useState<DetailsTab | null>(null);
-  const detailsRef = useRef<HTMLElement>(null);
   const properties = desk.data.portfolio?.properties ?? [];
-
-  useEffect(() => {
-    if (details) detailsRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
-  }, [details]);
 
   const humanLabel = held ? "You decide" : bill.status === "REJECTED" || bill.resolved_by === "HUMAN" ? "A person decided" : "No human needed";
 
@@ -167,14 +162,15 @@ function Story({ bill, desk }: { bill: BillView; desk: DeskState }) {
         </div>
       </header>
 
-      <ol className={`grid gap-4 ${agent ? "grid-cols-[1fr_1.45fr_1.2fr_1fr]" : "grid-cols-[1fr_1.45fr_0.75fr_1.2fr]"}`}>
+      {/* Four columns from 1280px, two by two on tablets and small laptops, stacked on phones. */}
+      <ol className={`grid grid-cols-1 gap-4 md:grid-cols-2 ${agent ? "xl:grid-cols-[1fr_1.45fr_1.2fr_1fr]" : "xl:grid-cols-[1fr_1.45fr_0.75fr_1.2fr]"}`}>
         <Step n={1} label={bill.source === "DOCUMENT" ? "AI read" : "Read in"} state="done" sub={bill.source === "DOCUMENT" ? `Intake agent · ${bill.source_label ?? "document"}` : bill.source === "FEED" ? `${bill.source_label ?? "Feed"} record` : "Typed in Test a bill"}>
           <ReadFields bill={bill} />
         </Step>
 
         <Step n={2} label="Code decided" state="done" sub={evidenceTitle(bill)}>
           <Evidence bill={bill} />
-          <DetailsLink onClick={() => setDetails("checks")} open={details === "checks"}>{checksSummary(bill)}</DetailsLink>
+          <DetailsLink onClick={() => setDetails("checks")}>{checksSummary(bill)}</DetailsLink>
         </Step>
 
         <Step n={3} label="Agent drafted" state={agent ? (bill.investigation?.status === "DONE" ? "done" : "now") : "none"} sub={agent ? <ProviderTags bill={bill} /> : undefined}>
@@ -202,27 +198,28 @@ function Story({ bill, desk }: { bill: BillView; desk: DeskState }) {
           ) : (
             <p className={T.body}>{story.next}</p>
           )}
-          <DetailsLink onClick={() => setDetails("history")} open={details === "history"}>History · {bill.audit.length} entries</DetailsLink>
+          <DetailsLink onClick={() => setDetails("history")}>History · {bill.audit.length} entries</DetailsLink>
         </Step>
       </ol>
 
       {details && (
-        <Details ref={detailsRef} bill={bill} tab={details} chainIntact={desk.data.auditChainIntact} onTab={setDetails} onClose={() => setDetails(null)} />
+        <DetailsModal bill={bill} tab={details} chainIntact={desk.data.auditChainIntact} onTab={setDetails} onClose={() => setDetails(null)} />
       )}
     </div>
   );
 }
 
-function DetailsLink({ children, onClick, open }: { children: ReactNode; onClick(): void; open: boolean }) {
+/** The quiet link at the foot of a card that opens the Details modal. */
+function DetailsLink({ children, onClick }: { children: ReactNode; onClick(): void }) {
   return (
     <button
       type="button"
-      aria-expanded={open}
+      aria-haspopup="dialog"
       onClick={onClick}
-      className="mt-auto flex min-h-12 w-full cursor-pointer items-center gap-2 border-t border-white/[0.08] pt-3 text-left outline-none focus-visible:ring-2 focus-visible:ring-paper"
+      className="group mt-auto flex min-h-12 w-full cursor-pointer items-center gap-2 border-t border-white/[0.08] pt-3 text-left outline-none focus-visible:ring-2 focus-visible:ring-paper"
     >
-      <span className={`${T.small} min-w-0 flex-1 ${open ? "text-paper" : "text-muted hover:text-paper"}`}>{children}</span>
-      <Icon name="chevron" className="text-muted" />
+      <span className={`${T.small} min-w-0 flex-1 text-muted group-hover:text-paper`}>{children}</span>
+      <Icon name="chevron" className="-rotate-90 text-muted group-hover:text-paper" />
     </button>
   );
 }
