@@ -75,7 +75,7 @@ package.json, package-lock.json, configs                               shared: c
 ## 7. Database
 
 - Convex is the system of record. Tables: `properties`, `vendors`, `vendorAccounts`, `bills`, `auditEvents`, `payments`, `aliases`, `investigations`. Seed data is inserted by `convex/seed.ts` from `src/seed/`. Running the seed twice changes nothing.
-- A PDF or photo is stored with Convex file storage. The bill row stores the storage id.
+- A PDF or photo is stored with Convex file storage. The storage id is kept on the bill's INTAKE audit row (`data.storage_id`); `getBillDocument` turns it into a URL for the UI.
 - Audit rows are insert-only. The demo reset is the only delete, and it deletes live rows wholesale. Seed history stays.
 - Every status change and its audit row commit in the same mutation. The first `prevHash` is 64 zeros. `verifyAudit` recomputes the chain.
 

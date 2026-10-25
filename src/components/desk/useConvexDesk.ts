@@ -40,3 +40,8 @@ export function useConvexDesk(): { data: DeskData; actions: DeskActions } {
   };
   return { data, actions };
 }
+
+/** A bill's original uploaded file (URL, content type, filename); null for typed and feed bills, undefined while loading. */
+export function useBillDocument(billId: string) {
+  return useQuery(api.bills.queries.getBillDocument, { billId });
+}
