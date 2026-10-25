@@ -129,7 +129,7 @@ npm test
 npm run extract -- fixtures/bills/BILL-103-ebmud.pdf
 ```
 
-`npm run dev` starts Next.js and `convex dev` together. Let the standalone `npx convex dev` write `NEXT_PUBLIC_CONVEX_URL`, then stop it before `npm run dev` so two Convex processes are not fighting. `node scripts/sync-convex-env.mjs` is the step that copies server variables into Convex. This checkout does not include that script yet; until it does, set the same names in the Convex dashboard. `npm test` never calls the network. The extract CLI prints one `ExtractedBill` for a local PDF or image. `fixtures/bills/` currently contains only `.gitkeep`, so `BILL-103-ebmud.pdf` is the intended path once a redacted fixture is committed.
+`npm run dev` starts Next.js and `convex dev` together. Let the standalone `npx convex dev` write `NEXT_PUBLIC_CONVEX_URL`, then stop it before `npm run dev` so two Convex processes are not fighting. `node scripts/sync-convex-env.mjs` is the step that copies server variables into Convex. This checkout does not include that script yet; until it does, set the same names in the Convex dashboard. `npm test` never calls the network. The extract CLI prints one `ExtractedBill` for a local PDF or image. `fixtures/bills/` holds one fictional sample bill PDF per demo input in `src/seed/demo-inputs.ts`, plus a blurred phone photo (`CHIP-CLEAN-PGE-pge-photo.png`) that is held for low confidence. Uploading a PDF lands on the same verdict as typing that bill. `npm run fixtures:bills` regenerates them with the local Google Chrome.
 
 ## Team
 
