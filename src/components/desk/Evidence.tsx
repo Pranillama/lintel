@@ -10,7 +10,7 @@ import { formatPct, formatQty, formatUsd } from "@/engine/format";
 import { humanRefusal } from "@/engine/human";
 import { POLICY } from "@/seed/policy";
 import type { BillView, Property, Vendor } from "@/types/bill";
-import { CHECK_LABEL, errorMessage, type DeskActions } from "./contract";
+import { CHECK_LABEL, errorMessage, REASON_LABEL, type DeskActions } from "./contract";
 import { humanize } from "./Details";
 import { check, failedChecks, MATCH_NEEDS, num, RAIL_LABEL, splitUnit, storyKind, str } from "./story";
 import { Button, ErrorLine, Icon, Money, shortDate, T, Tag } from "./ui";
@@ -405,7 +405,8 @@ function FailedEvidence({ bill }: { bill: BillView }) {
       {failed.map((c) => (
         <div key={c.id} className="flex flex-col gap-1 border-b border-white/[0.08] py-3 last:border-b-0">
           <span className={`${T.body} font-semibold`}>{CHECK_LABEL[c.id]}</span>
-          <span className={`${T.small} text-muted`}>{humanize(c.rationale)}</span>
+          {/* A MATCH halt that lands here is a vendor problem; its rationale only reports address confidence. */}
+          <span className={`${T.small} text-muted`}>{c.id === "MATCH" && c.reasons.length ? c.reasons.map((r) => REASON_LABEL[r]).join(" · ") : humanize(c.rationale)}</span>
         </div>
       ))}
     </div>

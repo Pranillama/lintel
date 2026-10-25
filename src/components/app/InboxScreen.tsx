@@ -130,7 +130,7 @@ function Select({ label, value, onChange, options }: { label: string; value: str
 
 function owner(bill: BillView): { text: string; you: boolean } {
   if (bill.status === "HELD") return { text: APPROVER_LABEL[bill.decision.required_approver], you: true };
-  if (bill.status === "CLEARED") return { text: bill.resolved_by === "HUMAN" ? "Approved by a person" : "Automatic", you: false };
+  if (bill.status === "CLEARED") return { text: bill.resolved_by === "HUMAN" ? "By a person" : "Automatic", you: false };
   if (bill.status === "REJECTED") return { text: "Rejected", you: false };
   return { text: "No action", you: false };
 }

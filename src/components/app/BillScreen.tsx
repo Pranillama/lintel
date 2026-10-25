@@ -215,7 +215,7 @@ function BillSays({ bill }: { bill: BillView }) {
   const doc = bill.source === "DOCUMENT";
   return (
     <>
-      <CardTitle who={doc ? "AI" : "YOU"} title="What the bill says" sub={doc ? "Read by Claude · hover a word to see where it came from" : bill.source === "FEED" ? "From the bill feed" : "Typed in by a person"} />
+      <CardTitle who={doc ? "AI" : bill.source === "FEED" ? "CODE" : "YOU"} title="What the bill says" sub={doc ? "Read by Claude · hover a word to see where it came from" : bill.source === "FEED" ? "From the bill feed" : "Typed in by a person"} />
       <dl className="flex flex-col">
         {FIELDS.map(([label, get]) => {
           const f = get(bill);
