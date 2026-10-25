@@ -8,7 +8,10 @@ import type { InvestigationContext } from "@/types/bill";
 
 const CREAO_RUNS_URL = "https://agent.creao.ai/api/v1/runs";
 const CREAO_BUDGET_MS = 90_000;
-const CREAO_POLL_MS = 2_000;
+// Every status check counts against CREAO's per-key rate limit; 4s halves the requests per run.
+const CREAO_POLL_MS = 4_000;
+/** How much of a non-brief answer the fallback log keeps. */
+const ANSWER_SNIPPET = 300;
 
 export const investigationOutputSchema = z.object({
   summary: z.string().min(1),
@@ -25,7 +28,8 @@ export const investigationOutputSchema = z.object({
       to: z.string().min(1),
       subject: z.string().min(1),
       body: z.string().min(1),
-      suggested_property_id: z.string().nullable(),
+      // The agent often leaves this key out instead of writing null; both mean "no property".
+      suggested_property_id: z.string().nullish().transform((id) => id ?? null),
     })
     .nullable(),
 });
@@ -82,7 +86,7 @@ export async function runCreao(ctx: InvestigationContext): Promise<{
     if (Date.now() >= deadline) break;
     const run = creaoRunSchema.parse(await creaoFetch(runUrl, apiKey, deadline, { method: "GET" }));
     if (run.status === "completed") {
-      const output = await readCompletedOutput(run.result, apiKey, deadline);
+      const output = await readCompletedOutput(run.result, started.id, apiKey, deadline);
       return { output, creao_run_id: started.id };
     }
     if (run.status === "failed" || run.status === "cancelled") {
@@ -102,34 +106,47 @@ export async function runCreao(ctx: InvestigationContext): Promise<{
  */
 async function readCompletedOutput(
   result: CreaoRunResult,
+  runId: string,
   apiKey: string,
   deadline: number,
 ): Promise<InvestigationOutput> {
   const fromText = investigationFromText(result?.text);
-  if (fromText.output) return fromText.output;
+  if (fromText) return fromText;
 
   const artifactUrl = jsonArtifactUrl(result?.artifacts);
   if (artifactUrl) {
     const payload = await creaoFetch(artifactUrl, apiKey, deadline, { method: "GET" });
-    return investigationOutputSchema.parse(payload);
+    const parsed = investigationOutputSchema.safeParse(payload);
+    if (parsed.success) return parsed.data;
+    throw new Error(`CREAO run ${runId} returned no brief (artifact ${describeAnswer(payload)})`);
   }
 
-  if (fromText.error) throw fromText.error;
-  throw new Error("CREAO completed without result text");
+  // Name what came back so the fallback log shows how the agent's answer drifted from the brief.
+  throw new Error(`CREAO run ${runId} returned no brief (text ${describeText(result?.text)}; ${result?.artifacts?.length ?? 0} artifacts)`);
 }
 
-function investigationFromText(text: string | null | undefined): {
-  output: InvestigationOutput | null;
-  error: unknown;
-} {
-  if (!text || text.trim() === "") return { output: null, error: null };
+function investigationFromText(text: string | null | undefined): InvestigationOutput | null {
+  if (!text || text.trim() === "") return null;
   try {
     const parsed = investigationOutputSchema.safeParse(parseModelJson(text));
-    if (parsed.success) return { output: parsed.data, error: null };
-    return { output: null, error: parsed.error };
-  } catch (err) {
-    return { output: null, error: err };
+    return parsed.success ? parsed.data : null;
+  } catch {
+    return null;
   }
+}
+
+function describeText(text: string | null | undefined): string {
+  if (!text || text.trim() === "") return "empty";
+  try {
+    return describeAnswer(parseModelJson(text));
+  } catch {
+    return `not JSON: ${text.trim().slice(0, ANSWER_SNIPPET)}`;
+  }
+}
+
+function describeAnswer(value: unknown): string {
+  const shape = value !== null && typeof value === "object" && !Array.isArray(value) ? `keys: ${Object.keys(value).join(", ") || "none"}` : `a JSON ${Array.isArray(value) ? "array" : typeof value}`;
+  return `${shape}: ${JSON.stringify(value).slice(0, ANSWER_SNIPPET)}`;
 }
 
 function jsonArtifactUrl(
@@ -178,7 +195,7 @@ async function creaoFetch(
     if (response.status === 429) {
       const seconds = Number.parseFloat(response.headers.get("Retry-After") ?? "");
       const wait = Number.isFinite(seconds) && seconds >= 0 ? seconds * 1000 : CREAO_POLL_MS;
-      if (Date.now() + wait >= deadline) throw new Error("CREAO request failed (429)");
+      if (Date.now() + wait >= deadline) throw new Error(`CREAO request failed (429, retry after ${Number.isFinite(seconds) ? seconds : "?"}s)`);
       await sleep(wait);
       continue;
     }
