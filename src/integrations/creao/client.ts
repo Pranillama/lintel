@@ -156,25 +156,35 @@ async function creaoFetch(
   deadline: number,
   init: { method: "GET" | "POST"; body?: string },
 ): Promise<unknown> {
-  const remaining = deadline - Date.now();
-  if (remaining <= 0) throw new Error("CREAO timed out after 90s");
-  let response: Response;
-  try {
-    response = await fetch(url, {
-      method: init.method,
-      body: init.body,
-      signal: AbortSignal.timeout(remaining),
-      headers: {
-        Authorization: `Bearer ${apiKey}`,
-        ...(init.body ? { "Content-Type": "application/json" } : {}),
-      },
-    });
-  } catch (err) {
-    if (Date.now() >= deadline) throw new Error("CREAO timed out after 90s");
-    throw err;
+  for (;;) {
+    const remaining = deadline - Date.now();
+    if (remaining <= 0) throw new Error("CREAO timed out after 90s");
+    let response: Response;
+    try {
+      response = await fetch(url, {
+        method: init.method,
+        body: init.body,
+        signal: AbortSignal.timeout(remaining),
+        headers: {
+          Authorization: `Bearer ${apiKey}`,
+          ...(init.body ? { "Content-Type": "application/json" } : {}),
+        },
+      });
+    } catch (err) {
+      if (Date.now() >= deadline) throw new Error("CREAO timed out after 90s");
+      throw err;
+    }
+    // CREAO rate-limits bursts per key for a few seconds; wait it out inside the budget.
+    if (response.status === 429) {
+      const seconds = Number.parseFloat(response.headers.get("Retry-After") ?? "");
+      const wait = Number.isFinite(seconds) && seconds >= 0 ? seconds * 1000 : CREAO_POLL_MS;
+      if (Date.now() + wait >= deadline) throw new Error("CREAO request failed (429)");
+      await sleep(wait);
+      continue;
+    }
+    if (!response.ok) throw new Error(`CREAO request failed (${response.status})`);
+    return (await response.json()) as unknown;
   }
-  if (!response.ok) throw new Error(`CREAO request failed (${response.status})`);
-  return (await response.json()) as unknown;
 }
 
 function parseModelJson(text: string): unknown {
