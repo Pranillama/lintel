@@ -56,8 +56,6 @@ export interface DeskActions {
   addAccount(input: NewAccountInput): Promise<VendorAccount>;
 }
 
-export type DrawerKind = "policy";
-export type DeskView = "desk" | "portfolio";
 export type BlotterTab = "all" | "held" | "blocked" | "cleared" | "live";
 
 /* ---------- Shared labels (display only, never logic) ---------- */

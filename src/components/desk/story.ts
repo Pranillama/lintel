@@ -66,6 +66,7 @@ export function storyKind(bill: BillView): StoryKind {
   if (r.includes("CRS_FLAGGED")) return "vendor";
   if (r.includes("EXTRACTION_FAILED") || r.includes("MISSING_FIELD") || r.includes("LOW_CONFIDENCE")) return "unread";
   if (r.includes("NEEDS_PROPERTY_MATCH")) return "property";
+  if (r.includes("UNKNOWN_VENDOR")) return "vendor";
   if (r.includes("USAGE_SPIKE") || r.includes("AMOUNT_SPIKE")) return "spike";
   if (r.includes("VENDOR_UNVERIFIED") || r.includes("CRS_UNAVAILABLE")) return "vendor";
   if (r.includes("OVER_AUTO_PAY_LIMIT") || r.includes("UTILITY_NOT_ACCOUNT_MATCHED")) return "policy";
@@ -114,6 +115,9 @@ export function storyOf(bill: BillView): Story {
     case "vendor": {
       if (bill.decision.reasons.includes("CRS_FLAGGED")) {
         return { kind, headline: "Background check flagged this vendor", next: "Flagged vendors are never paid. No one needs to approve.", row: "Vendor flagged" };
+      }
+      if (bill.decision.reasons.includes("UNKNOWN_VENDOR")) {
+        return { kind, headline: `${vendor} isn't in the vendor file yet`, next: heldNext(bill), row: "Unknown vendor" };
       }
       return { kind, headline: `${vendor} is not verified yet`, next: heldNext(bill), row: "New vendor, not verified" };
     }

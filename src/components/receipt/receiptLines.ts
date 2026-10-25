@@ -1,6 +1,7 @@
 import { formatUsd } from "@/engine/format";
 import { SEATS_LINE } from "@/seed/policy";
 import type { ApproverRole, BillStatus, BillView, BillsResponse, ReasonCode } from "@/types/bill";
+import { storyKind, storyOf } from "../desk/story";
 
 /**
  * Turns a listBills response into the lines the receipt printer prints.
@@ -74,8 +75,7 @@ function detail(bill: BillView): string {
       return bill.resolved_by === "HUMAN" ? `${rail} · BY HUMAN` : rail;
     }
     case "BLOCKED": {
-      const first = reasons[0] ? words(reasons[0]) : "BLOCKED";
-      return bill.decision.duplicate_of ? `${first} OF ${bill.decision.duplicate_of}` : first;
+      return storyKind(bill) === "duplicate" ? storyOf(bill).row.toUpperCase() : reasons[0] ? words(reasons[0]) : "BLOCKED";
     }
     case "HELD":
       return reasons.slice(0, 2).map(words).join(" · ") || "HELD";
