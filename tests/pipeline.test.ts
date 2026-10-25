@@ -20,7 +20,7 @@ function held(reasons: BillRecord["decision"]["reasons"], status: BillRecord["st
 }
 
 describe("human resume rules", () => {
-  it("refuses every action on a blocked bill", () => {
+  it("refuses assign, approve and reject on a blocked bill", () => {
     const bill = held(["EXACT_DUPLICATE"], "BLOCKED");
     expect(humanRefusal(bill, "approve", null)).toMatch(/Blocked/);
     expect(humanRefusal(bill, "assign", null)).toMatch(/Blocked/);
@@ -30,6 +30,15 @@ describe("human resume rules", () => {
   it("refuses approval while the property is still untrusted", () => {
     expect(humanRefusal(held(["NEEDS_PROPERTY_MATCH"]), "approve", null)).toMatch(/trusted/);
     expect(humanRefusal(held(["AMOUNT_SPIKE"]), "approve", null)).toBeNull();
+  });
+
+  it("sends a draft only while the bill is still an open exception", () => {
+    const brief = { status: "DONE" as const, draft: { kind: "VENDOR_EMAIL" as const, to: "Vendor", subject: "s", body: "b", suggested_property_id: null } };
+    expect(humanRefusal(held(["EXACT_DUPLICATE"], "BLOCKED"), "send-draft", brief)).toBeNull();
+    expect(humanRefusal(held(["USAGE_SPIKE"]), "send-draft", brief)).toBeNull();
+    expect(humanRefusal(held([], "CLEARED"), "send-draft", brief)).toMatch(/resolved/);
+    expect(humanRefusal(held(["AMOUNT_SPIKE"], "REJECTED"), "send-draft", brief)).toMatch(/resolved/);
+    expect(humanRefusal(held(["USAGE_SPIKE"]), "send-draft", { status: "RUNNING", draft: null })).toMatch(/no draft/);
   });
 
   it("allows assign only for a held property match", () => {

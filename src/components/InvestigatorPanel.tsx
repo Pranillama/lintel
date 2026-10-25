@@ -91,17 +91,18 @@ export function InvestigatorPanel({ bill, actions }: { bill: BillView; actions: 
         {brief.status === "DONE" && brief.draft && (
           brief.draft_sent ? (
             <span className="btn btn-outline px-5 py-2.5 text-[14px]" aria-label="Draft sent">Sent ✓</span>
+          ) : sendRefusal ? (
+            <p className="text-[12.5px] text-muted">{sendRefusal}</p>
           ) : (
-            <button type="button" className="btn btn-light px-5 py-2.5 text-[14px]" disabled={sendRefusal !== null || busy} title={sendRefusal ?? undefined} onClick={send}>
+            <button type="button" className="btn btn-light px-5 py-2.5 text-[14px]" disabled={busy} onClick={send}>
               {busy ? "Sending…" : "Send"}
             </button>
           )
         )}
-        <p className="text-[12.5px] text-muted">Agents draft. People send. Code decides.</p>
+        {!(brief.status === "DONE" && brief.draft && !brief.draft_sent && sendRefusal) && (
+          <p className="text-[12.5px] text-muted">Agents draft. People send. Code decides.</p>
+        )}
       </div>
-      {brief.status === "DONE" && brief.draft && !brief.draft_sent && sendRefusal && (
-        <p className="-mt-2 text-[12px] text-muted">{sendRefusal}</p>
-      )}
       <p aria-live="polite" className="-mt-2 text-[12px] font-semibold text-paper empty:hidden">{error}</p>
     </div>
   );
