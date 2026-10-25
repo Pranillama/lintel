@@ -1,6 +1,6 @@
 # Add-on: Cartesia two-way voice agent
 
-Research spec, written Oct 25, 2026 against `main` at `8f0f218`. Option A (read-only reviewer tools, no browser panel) is implemented separately. The browser panel is deferred; see the note under the rules.
+Research spec, written Oct 25, 2026 against `main` at `8f0f218`. The current cut is a browser-only reviewer on `/bills/[id]`. There is no phone number. Steps for Pranil are in `context/add-ons/cartesia-voice-setup.md`.
 
 This is a **conversation, not narration**. People talk to Lintel and Lintel talks back:
 
@@ -11,7 +11,7 @@ Cartesia **Managed Agents** handle the listening, turn-taking, interruptions, sp
 
 > The model reads the bill. Code decides whether it gets paid. **The voice agent can only repeat what code decided. It has no tool that approves, rejects, assigns, or pays.** A person owns the exceptions.
 
-> **Option A is the current cut.** The browser panel in §5.4 is deferred. PR #27 removed `Desk.tsx`, `useDesk.ts`, `TopBar.tsx`, and `LiveDesk.tsx`, so those hooks are stale. Do not add client tools until the desk API is chosen again. Setup is `scripts/cartesia-setup.mjs`. A phone number is optional (`--phone`). Steps for Pranil are in `context/add-ons/cartesia-voice-setup.md`.
+> **Browser-only is the current cut.** The panel is `src/components/app/VoicePanel.tsx` on the bill page, not the old desk files. PR #27 removed `Desk.tsx`, `useDesk.ts`, `TopBar.tsx`, and `LiveDesk.tsx`, so those hooks stay stale. Client tools are `get_selected_bill` and `show_bill`. Setup is `scripts/cartesia-setup.mjs` with `--dry-run`. There is no `--phone` path.
 
 Cross-links: `context/master-spec.md` §4 (AI allowed vs forbidden), §5.2–§5.3 (status, approver, why-sentences); `context/ui-context.md` §1; `context/ai-workflow-rules.md` §2, §8; `context/add-ons/capital-one-payments.md` (payment status the agent can report); `context/add-ons/portfolio-ask.md` (typed Q&A; its "no voice" non-goal is about that drawer only).
 
@@ -152,9 +152,9 @@ Created once by `scripts/cartesia-agents.mjs` (run by hand; prints the agent ids
   - Tools: `lookup_my_invoice`, `get_call_bill`, `end_call`.
   - Prompt adds: never discuss other vendors or internal rules, never promise a payment date the tool did not return, and offer a callback from a person for anything else.
 
-### 5.4 Browser voice panel (deferred)
+### 5.4 Browser voice panel (built)
 
-PR #27 removed the desk files this section was written against (`Desk.tsx`, `useDesk.ts`, `TopBar.tsx`, `LiveDesk.tsx`). Leave this panel unbuilt until the desk API is chosen again. The notes below are the original plan, not the current build.
+The panel is on `/bills/[id]`, in `src/components/app/VoicePanel.tsx`, mounted from `BillScreen`. `startVoiceSession` in `convex/pipeline/voice.ts` mints the access token with `CARTESIA_API_KEY` and returns a `wss://` URL. The browser answers `get_selected_bill` and `show_bill`. The notes below are the original desk-file plan. Those files are gone; do not recreate them.
 
 ### 5.4a Original browser panel plan (Piyush lane, `src/components/desk/voice/`)
 
