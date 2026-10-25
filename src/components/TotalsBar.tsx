@@ -65,9 +65,10 @@ function Meter({ label, value, share, blocked }: { label: string; value: number;
   );
 }
 
-export function TotalsBar({ totals, auditChainIntact, intakeLabel, countUp }: TotalsBarProps) {
-  const target = totals ? { blocked: totals.blocked, held: totals.held, cleared: totals.cleared } : undefined;
-  const frame = useCountUp(target, countUp);
+export function TotalsBar({ totals, auditChainIntact, intakeLabel, countUp, replaying }: TotalsBarProps) {
+  // ui-context §3: totals sit at $0.00 while the replay runs, then count up once to the result.
+  const target = replaying ? ZERO : totals ? { blocked: totals.blocked, held: totals.held, cleared: totals.cleared } : undefined;
+  const frame = useCountUp(target, countUp && !replaying);
   const shown = frame ?? target ?? ZERO;
   // Visual share of the three buckets for the meter fills only; never printed.
   const sum = target ? target.blocked + target.held + target.cleared : 0;

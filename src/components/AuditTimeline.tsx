@@ -43,6 +43,7 @@ export function AuditTimeline({ events, auditChainIntact }: { events: AuditEvent
   const ordered = [...events].sort((a, b) => a.seq - b.seq);
   return (
     <div className="flex min-h-0 flex-1 flex-col gap-2">
+      {ordered.length === 0 && <p className="text-[13px] text-muted">No audit rows yet.</p>}
       <ol className="min-h-0 flex-1 space-y-2.5 overflow-y-auto pr-1">
         {ordered.map((event) => (
           <li key={event.id} className="flex min-w-0 items-start gap-2.5">

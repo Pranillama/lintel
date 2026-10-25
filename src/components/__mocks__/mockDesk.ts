@@ -174,6 +174,7 @@ export function useMockDesk(): { data: DeskData; actions: DeskActions } {
         }
         commit({ ...next, bills: sortNewest(next.bills) });
         next.bills.filter((b) => b.investigation?.status === "RUNNING").forEach(investigateLater);
+        return next.bills;
       },
       processForm: (form) => create({ kind: "FORM", form }),
       processDocument: (document) => create({ kind: "DOCUMENT", document }),

@@ -414,11 +414,11 @@ export function JudgeDrawer({ onClose, actions, onCreated }: JudgeDrawerProps) {
             {partial && (
               <div className="flex flex-col items-start gap-3 rounded-[24px] bg-bar px-5 py-4 text-paper">
                 <div className="flex flex-wrap items-center gap-3">
-                  <StatusChip status="HELD" />
+                  <StatusChip status={partial.status} />
                   <span className="text-[15px] font-semibold">Couldn’t read every field</span>
                 </div>
                 <p className="text-[14px] text-muted">
-                  The bill is already held. Lintel won’t decide money on a partial read. Fields that came back are kept.
+                  Lintel won’t decide money on a partial read. The bill is on the desk with every check; fields that came back are kept.
                 </p>
                 <button type="button" onClick={() => typeInstead(partial)} className="btn btn-light">
                   Type it instead

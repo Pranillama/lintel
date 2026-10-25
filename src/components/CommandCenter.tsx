@@ -10,7 +10,7 @@ import { PolicyDrawer } from "./PolicyDrawer";
 import { RealVsSimulatedDrawer } from "./RealVsSimulatedDrawer";
 import { TotalsBar } from "./TotalsBar";
 import { useConvexDesk } from "./useConvexDesk";
-import { inTab, type BlotterTab, type DeskActions, type DeskData, type DrawerKind } from "./desk";
+import { errorMessage, inTab, type BlotterTab, type DeskActions, type DeskData, type DrawerKind } from "./desk";
 
 const TABS: BlotterTab[] = ["all", "held", "blocked", "cleared", "live"];
 
@@ -40,7 +40,6 @@ export function DeskView({ data, actions, autoReplay = true }: { data: DeskData;
   const [replaying, setReplaying] = useState(false);
   const [replayError, setReplayError] = useState<string | null>(null);
   const [reduceMotion, setReduceMotion] = useState(false);
-  const pickAfterReplay = useRef(false);
   const replayedOnce = useRef(false);
 
   useEffect(() => {
@@ -56,10 +55,11 @@ export function DeskView({ data, actions, autoReplay = true }: { data: DeskData;
     setReplayError(null);
     setSelectedId(null);
     try {
-      await actions.replay();
-      pickAfterReplay.current = true;
+      // Pick from what replayOpening returned; the subscription may still be catching up.
+      const bills = await actions.replay();
+      setSelectedId(openingPick(bills)?.id ?? null);
     } catch (err) {
-      setReplayError(err instanceof Error ? err.message : "Replay failed.");
+      setReplayError(errorMessage(err));
     } finally {
       setReplaying(false);
     }
@@ -72,19 +72,17 @@ export function DeskView({ data, actions, autoReplay = true }: { data: DeskData;
     void replay();
   }, [autoReplay, replay]);
 
-  // After a replay lands, auto-select EBMUD (first held bill with a spike).
-  useEffect(() => {
-    if (!pickAfterReplay.current || replaying || data.bills.length === 0) return;
-    pickAfterReplay.current = false;
-    setSelectedId(openingPick(data.bills)?.id ?? null);
-  }, [data.bills, replaying]);
-
   // Keep the selection valid when the subscription updates.
   const selected = useMemo(() => data.bills.find((b) => b.id === selectedId), [data.bills, selectedId]);
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
-      if (e.key === "Escape" && drawer) { setDrawer(null); return; }
+      if (e.key === "Escape" && drawer) {
+        // In a field, Esc only leaves the field so a half-typed bill isn't lost.
+        if (isTyping(e.target)) (e.target as HTMLElement).blur();
+        else setDrawer(null);
+        return;
+      }
       if ((e.key === "j" || e.key === "J") && !e.metaKey && !e.ctrlKey && !e.altKey && !isTyping(e.target)) {
         e.preventDefault();
         setDrawer("judge");
@@ -119,7 +117,7 @@ export function DeskView({ data, actions, autoReplay = true }: { data: DeskData;
         openDrawer={drawer}
         onOpenDrawer={(kind) => setDrawer((open) => (open === kind ? null : kind))}
       />
-      <TotalsBar totals={data.totals} auditChainIntact={data.auditChainIntact} intakeLabel={intakeLabel} countUp={!reduceMotion} />
+      <TotalsBar totals={data.totals} auditChainIntact={data.auditChainIntact} intakeLabel={intakeLabel} countUp={!reduceMotion} replaying={replaying} />
 
       {replayError && (
         <p role="alert" className="-my-2 text-sm text-paper">

@@ -83,7 +83,7 @@ export function MatchAssignCards({ bill, properties, actions }: { bill: BillView
             </select>
           </label>
           <button type="button" className="btn btn-light px-5 py-2.5 text-[14px]" disabled={disabled || chosen === ""} onClick={() => assign(chosen)}>
-            Assign selected
+            Assign and remember
           </button>
         </div>
       </section>

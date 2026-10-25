@@ -35,8 +35,8 @@ export interface DeskData {
 
 /** Every action rejects with an Error whose message is safe to show inline (ConvexError text). */
 export interface DeskActions {
-  /** replayOpening: wipes live bills and replays the 4 opening bills. */
-  replay(): Promise<void>;
+  /** replayOpening: wipes live bills and replays the 4 opening bills. Resolves with those bills. */
+  replay(): Promise<BillView[]>;
   /** processBill({ kind: "FORM", form }). */
   processForm(form: BillFormInput): Promise<BillView>;
   /** processBill({ kind: "DOCUMENT", document }). */
@@ -74,6 +74,8 @@ export interface TotalsBarProps {
   intakeLabel: string;
   /** Count the numbers up when they land (opening replay). Off for reduced motion. */
   countUp: boolean;
+  /** Replay in flight: hold the totals at $0.00 until it returns. */
+  replaying: boolean;
 }
 
 export interface BlotterProps {

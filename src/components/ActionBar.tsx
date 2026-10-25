@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { humanRefusal } from "@/engine/human";
+import { hasPriority2, humanRefusal } from "@/engine/human";
 import type { BillView, PaymentRail } from "@/types/bill";
 import { APPROVER_LABEL, errorMessage, type DeskActions } from "./desk";
 
@@ -29,11 +29,9 @@ export function ActionBar({ bill, actions }: { bill: BillView; actions: DeskActi
   return (
     <div className="flex min-w-0 items-center gap-3 text-[14px]">
       <span className="font-semibold">{rail ? RAIL_LABEL[rail] : "No rail"}</span>
-      {payment && (
-        <span className="label-mono shrink-0 rounded-full bg-bar/[0.08] px-2.5 py-1 text-[10.5px] font-semibold">
-          {payment.mode === "SIMULATED" ? "Simulated" : "Testnet"}
-        </span>
-      )}
+      <span className="label-mono shrink-0 rounded-full bg-bar/[0.08] px-2.5 py-1 text-[10.5px] font-semibold">
+        {payment?.mode === "LIVE_TESTNET" ? "Testnet" : "Simulated"}
+      </span>
       {payment?.reference && (
         <span title={payment.reference} className="min-w-0 truncate font-mono text-[12px] text-muted">
           ref {payment.reference}
@@ -69,14 +67,16 @@ function HeldActions({ bill, actions }: { bill: BillView; actions: DeskActions }
   return (
     <div className="flex flex-col gap-1.5">
       <div className="flex items-center gap-2.5">
-        <button
-          type="button"
-          className="btn btn-dark px-5 py-2.5 text-[14px]"
-          disabled={approveRefusal !== null || busy !== null}
-          onClick={() => run("approve")}
-        >
-          {busy === "approve" ? "Approving…" : `Approve as ${APPROVER_LABEL[bill.decision.required_approver]}`}
-        </button>
+        {!(approveRefusal && hasPriority2(bill.decision.reasons)) && (
+          <button
+            type="button"
+            className="btn btn-dark px-5 py-2.5 text-[14px]"
+            disabled={approveRefusal !== null || busy !== null}
+            onClick={() => run("approve")}
+          >
+            {busy === "approve" ? "Approving…" : `Approve as ${APPROVER_LABEL[bill.decision.required_approver]}`}
+          </button>
+        )}
         <button
           type="button"
           className="btn btn-outline px-5 py-2.5 text-[14px]"

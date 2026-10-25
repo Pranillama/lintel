@@ -17,7 +17,7 @@ export function useConvexDesk(): { data: DeskData; actions: DeskActions } {
   const actions = useMemo<DeskActions>(() => {
     const run = (input: ProcessBillInput) => processBill({ input: JSON.stringify(input) }) as Promise<BillView>;
     return {
-      async replay() { await replayOpening({}); },
+      async replay() { return (await replayOpening({})).bills as BillView[]; },
       processForm: (form) => run({ kind: "FORM", form }),
       processDocument: (document) => run({ kind: "DOCUMENT", document }),
       assign: (billId, propertyId, note) => humanResume({ billId, kind: "assign", propertyId, note }) as Promise<BillView>,

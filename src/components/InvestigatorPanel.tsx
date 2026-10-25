@@ -94,6 +94,9 @@ export function InvestigatorPanel({ bill, actions }: { bill: BillView; actions: 
         )}
         <p className="text-[12.5px] text-muted">Agents draft. People send. Code decides.</p>
       </div>
+      {brief.status === "DONE" && brief.draft && !brief.draft_sent && sendRefusal && (
+        <p className="-mt-2 text-[12px] text-muted">{sendRefusal}</p>
+      )}
       <p aria-live="polite" className="-mt-2 text-[12px] font-semibold text-paper empty:hidden">{error}</p>
     </div>
   );
