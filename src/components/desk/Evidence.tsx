@@ -33,7 +33,7 @@ function numbers(value: unknown): number[] {
 }
 
 /** Reads the SPIKE check's baseline. Null when there is nothing to draw. */
-function spikeSeries(bill: BillView): Series | null {
+export function spikeSeries(bill: BillView): Series | null {
   const d = check(bill, "SPIKE")?.data;
   if (!d) return null;
   const usage = bill.extracted.usage_qty.value;
@@ -79,7 +79,7 @@ export function Evidence({ bill, vendors }: { bill: BillView; vendors: Vendor[] 
 
 /* ---------- Spike: baseline bars + this bill ---------- */
 
-function SpikeEvidence({ bill }: { bill: BillView }) {
+export function SpikeEvidence({ bill }: { bill: BillView }) {
   const series = spikeSeries(bill);
   if (!series) return <FailedEvidence bill={bill} />;
   const unit = series.kind === "usage" ? (UNIT[series.unit] ?? series.unit) : "";

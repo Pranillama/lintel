@@ -2,10 +2,11 @@
 
 /** Small pieces every app screen shares: header, back link, the status stamp, empty and loading states. */
 import Link from "next/link";
-import type { ReactNode } from "react";
-import type { BillStatus } from "@/types/bill";
+import { useEffect, type ReactNode } from "react";
+import type { BillStatus, BillView } from "@/types/bill";
 import { STATUS_LABEL } from "../desk/contract";
-import { Icon, T } from "../desk/ui";
+import { storyOf } from "../desk/story";
+import { Icon, Money, T } from "../desk/ui";
 
 export function Screen({ children, wide = false }: { children: ReactNode; wide?: boolean }) {
   return <main className={`mx-auto flex w-full flex-col gap-6 px-6 py-6 ${wide ? "max-w-[1440px]" : "max-w-[1240px]"}`}>{children}</main>;
@@ -60,6 +61,46 @@ export function Loading({ rows = 4 }: { rows?: number }) {
     <div aria-busy="true" aria-label="Loading" className="flex flex-col gap-3">
       {Array.from({ length: rows }, (_, i) => <div key={i} className="h-16 animate-pulse rounded-[16px] bg-card" />)}
     </div>
+  );
+}
+
+/** Right-hand sheet over the screen. Esc (outside a field) or the scrim closes it. */
+export function Overlay({ onClose, children }: { onClose(): void; children: ReactNode }) {
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key !== "Escape") return;
+      const el = e.target as HTMLElement | null;
+      if (el && ["INPUT", "SELECT", "TEXTAREA"].includes(el.tagName)) el.blur();
+      else onClose();
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [onClose]);
+  return (
+    <div className="fixed inset-x-0 bottom-0 top-[104px] z-40 flex justify-end bg-bar/70 p-4" onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}>
+      {children}
+    </div>
+  );
+}
+
+/** Bills as compact links: stamp, vendor or property, verdict, amount. */
+export function BillLinks({ bills, show }: { bills: BillView[]; show: "vendor" | "property" }) {
+  if (bills.length === 0) return <p className={`${T.small} text-muted`}>No bills yet.</p>;
+  return (
+    <ul className="flex flex-col">
+      {bills.map((b) => (
+        <li key={b.id} className="border-t border-white/[0.08] first:border-t-0">
+          <Link href={`/bills/${encodeURIComponent(b.id)}`} className="grid grid-cols-[96px_minmax(0,1fr)_auto] items-center gap-3 py-3 outline-none hover:bg-white/[0.03] focus-visible:ring-2 focus-visible:ring-paper">
+            <span><Stamp status={b.status} /></span>
+            <span className="min-w-0">
+              <span className={`${T.small} block truncate font-semibold`}>{(show === "vendor" ? b.vendor_name : b.property_name) ?? "Not matched yet"}</span>
+              <span className={`${T.small} block truncate text-muted`}>{storyOf(b).headline}</span>
+            </span>
+            <Money value={b.amount} struck={b.status === "BLOCKED"} className={`${T.small} font-semibold`} />
+          </Link>
+        </li>
+      ))}
+    </ul>
   );
 }
 
