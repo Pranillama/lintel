@@ -25,6 +25,10 @@ export function Landing() {
           Skip to the inbox →
         </Link>
       </header>
+      <div className="pointer-events-none fixed left-6 top-1/2 z-30 hidden w-[280px] -translate-y-1/2 flex-col gap-3 lg:flex">
+        <p className="text-[24px] font-semibold leading-8 tracking-[-0.02em] text-paper">Every property bill, checked before it&apos;s paid.</p>
+        <p className="text-[14px] leading-5 text-muted">Lintel reads the bill, matches it to a property and runs fixed rules. It pays the routine ones and brings you only the bills that need a person.</p>
+      </div>
       <ReceiptPrinter response={response} trackHeight="320vh" onOpenDesk={() => router.push("/inbox")} />
     </>
   );

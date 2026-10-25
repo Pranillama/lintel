@@ -18,7 +18,7 @@ export interface ReceiptPrinterProps {
   response: BillsResponse | undefined;
   /** Scroll distance that prints the whole tab. */
   trackHeight?: string;
-  /** When set, the end of the tab offers "Open the AP desk" (the landing page scrolls to the desk). */
+  /** When set, the end of the tab offers "Open the inbox". */
   onOpenDesk?: () => void;
 }
 
@@ -290,7 +290,11 @@ export function ReceiptPrinter({ response, trackHeight = "900vh", onOpenDesk }: 
       receiptRef.current = drawn;
       apiRef.current?.setReceipt(drawn);
       const box = fallbackRef.current;
-      if (box) { box.replaceChildren(drawn.canvas); drawn.canvas.style.width = "100%"; drawn.canvas.style.height = "auto"; }
+      if (box) {
+        box.replaceChildren(drawn.canvas); drawn.canvas.style.width = "100%"; drawn.canvas.style.height = "auto";
+        // The no-WebGL path only redraws on scroll; clip the new paper to the current position now.
+        if (!box.hidden) window.dispatchEvent(new Event("scroll"));
+      }
     });
     return () => { cancelled = true; };
   }, [lines]);
@@ -330,14 +334,14 @@ export function ReceiptPrinter({ response, trackHeight = "900vh", onOpenDesk }: 
           <div className="absolute bottom-7 left-1/2 flex -translate-x-1/2 gap-2.5">
             {onOpenDesk && (
               <button type="button" onClick={onOpenDesk} className="rounded-full px-6 py-3 text-sm font-semibold focus-visible:outline-2 focus-visible:outline-offset-2" style={{ background: C.lime, color: C.bar, outlineColor: C.lime }}>
-                Open the AP desk ↓
+                Open the inbox →
               </button>
             )}
             <button
               type="button"
               onClick={replay}
               className="rounded-full px-6 py-3 text-sm font-semibold focus-visible:outline-2 focus-visible:outline-offset-2"
-              style={onOpenDesk ? { background: "transparent", color: C.paper, boxShadow: `inset 0 0 0 1.5px ${C.raised}`, outlineColor: C.lime } : { background: C.lime, color: C.bar, outlineColor: C.lime }}
+              style={onOpenDesk ? { background: C.bar, color: C.paper, boxShadow: `inset 0 0 0 1.5px ${C.raised}`, outlineColor: C.lime } : { background: C.lime, color: C.bar, outlineColor: C.lime }}
             >
               Print it again
             </button>
