@@ -6,7 +6,7 @@
  * four plain-language tabs: what Lintel checked, what the bill says, what the AI prepared, history.
  */
 import Link from "next/link";
-import { useState, type ReactNode } from "react";
+import { useEffect, useState, type ReactNode } from "react";
 import type { BillView } from "@/types/bill";
 import { AgentDraft, ProviderTags } from "../desk/Agent";
 import { CHECK_LABEL } from "../desk/contract";
@@ -18,6 +18,7 @@ import { storyKind, storyOf } from "../desk/story";
 import { CARD, ErrorLine, Icon, Money, shortDate, T } from "../desk/ui";
 import { useApp } from "./AppProvider";
 import { Empty, Loading, Screen, ScreenHeader, Stamp, WhoChip } from "./kit";
+import { VoicePanel } from "./VoicePanel";
 import { actorOf, confidenceWord, eventNote, eventTitle, type ActorKind } from "./plain";
 import { ReceiptTicket } from "./ReceiptTicket";
 
@@ -26,7 +27,7 @@ export function BillScreen({ id }: { id: string }) {
   const bill = data.bills.find((b) => b.id === id);
   if (data.loading) return <Screen wide><Loading rows={3} /></Screen>;
   if (!bill) return <Screen><ScreenHeader title="Bill not found" back={{ href: "/inbox", label: "Inbox" }} /><Empty>This bill isn&apos;t on the desk. It may have been reset.</Empty></Screen>;
-  return <BillDetail key={bill.id} bill={bill} />;
+  return <BillDetail bill={bill} />;
 }
 
 type Tab = "checked" | "says" | "ai" | "history";
@@ -34,6 +35,7 @@ type Tab = "checked" | "says" | "ai" | "history";
 function BillDetail({ bill }: { bill: BillView }) {
   const { data, actions } = useApp();
   const [tab, setTab] = useState<Tab>("checked");
+  useEffect(() => { setTab("checked"); }, [bill.id]);
 
   const next = data.bills.filter((b) => b.status === "HELD" && b.id !== bill.id).at(-1);
   const portfolio = data.portfolio;
@@ -61,6 +63,7 @@ function BillDetail({ bill }: { bill: BillView }) {
 
         <section className="flex min-w-0 flex-col gap-4">
           <DecisionPanel bill={bill} />
+          <VoicePanel billId={bill.id} />
 
           <div role="tablist" aria-label="Bill details" className="flex gap-1 border-b border-white/[0.08]">
             <TabButton on={tab === "checked"} onClick={() => setTab("checked")}>What Lintel checked</TabButton>
