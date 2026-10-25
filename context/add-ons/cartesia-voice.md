@@ -1,247 +1,255 @@
-# Add-on: Cartesia voice explainer
+# Add-on: Cartesia two-way voice agent
 
 Research spec, ready to build. No code has been written for it. Researched Oct 25, 2026 against the code on `main` at `8f0f218`.
 
-A reviewer presses **Listen** on a bill and hears, in one short spoken paragraph, what the desk already says on screen: the verdict, the numbers behind it, and who has to act. Cartesia Sonic turns the text into speech. **Deterministic code writes every word that is spoken.** The voice reads the decision; it never makes one.
+This is a **conversation, not narration**. People talk to Lintel and Lintel talks back:
 
-> The model reads the bill. Code decides whether it gets paid. **Code writes what the voice says.** A person owns the exceptions.
+- **Reviewer (phase 1, browser).** An AP reviewer opens a bill and asks out loud: *"Why is this one held?" "Who has to approve it?" "What did the agent find?" "Which bills still need me today?"* The agent answers with the engine's own numbers and can move the screen to the bill it is talking about.
+- **Vendor (phase 2, phone).** A contractor calls a Lintel number, or Lintel calls them after a person presses **Call vendor**. They ask *"Has invoice 4471 been paid?"* or hear *"Your invoice is missing an invoice number. Can you read it to me?"* The agent answers only with facts that are safe to share with that vendor.
 
-Cross-links: `context/master-spec.md` §4 (AI allowed vs forbidden), §5.2–§5.3 (status, approver, why-sentence templates); `context/ui-context.md` §1 (story header, cards); `context/code-standards.md` (lane folders); `src/types/bill.ts` (frozen contract). Sibling add-on: `context/add-ons/portfolio-ask.md` (the typed-question drawer; its non-goals exclude voice, this file does not change that).
+Cartesia **Managed Agents** handle the listening, turn-taking, interruptions, speech (Sonic), and the LLM. Lintel exposes **read-only tools** that return deterministic facts.
+
+> The model reads the bill. Code decides whether it gets paid. **The voice agent can only repeat what code decided. It has no tool that approves, rejects, assigns, or pays.** A person owns the exceptions.
+
+Cross-links: `context/master-spec.md` §4 (AI allowed vs forbidden), §5.2–§5.3 (status, approver, why-sentences); `context/ui-context.md` §1; `context/ai-workflow-rules.md` §2, §8; `context/add-ons/capital-one-payments.md` (payment status the agent can report); `context/add-ons/portfolio-ask.md` (typed Q&A; its "no voice" non-goal is about that drawer only).
 
 ---
 
-## 1. Why Cartesia, and what the track asks for
+## 1. Integration effort, in short
 
-- Cartesia is listed as a Cal Hacks 13.0 sponsor on calhacks.io. **The 2026 prize name and judging criteria were not published online** (Devpost returned 403). Most recent public record: Cartesia partnered with Cal Hacks 11.0 (Oct 2024, "Hacktober"; winner SpeakEasy). Source: https://www.cartesia.ai/blog/hacktober.
-- **Action before building:** ask at the Cartesia booth or the hacker guide for (a) the exact track criteria, (b) hackathon credits. If the track requires a realtime voice agent (Line) rather than TTS, read §9 Stretch first.
-- Why it fits Lintel: the desk's hardest moment for a reviewer is a HELD or BLOCKED bill with eight checks behind it. A 10–20 second spoken explanation ("Blocked. This Recology invoice is within 0.9% of one we paid five days ago…") is the clearest version of the why-card for a loud judging table, and it does not move the AI boundary.
+| Question | Answer |
+|---|---|
+| Is an API key enough? | **Yes.** A Cartesia key (`sk_car_…`) on the server creates the agent, its tools, and calls. The browser gets a short-lived access token that the server mints (`POST /access-token`, `grants: { agent: true }`, ≤ 3600 s). I found no waitlist or approval gate. [C] |
+| Is it like ElevenLabs Agents? | **Same model**: a hosted agent with a prompt, a voice, an LLM, webhook tools, client tools, and phone numbers. **One difference matters for us:** ElevenLabs ships a browser SDK (`@elevenlabs/react`) that handles the mic, WebRTC, and playback. Cartesia has **no browser agent SDK**, so we write about 150–200 lines of raw WebSocket + Web Audio code. Server-side work is the same on both. [C] |
+| Is there a no-code path? | The Playground (https://play.cartesia.ai/agents) builds and previews the agent. A Cartesia US phone number can be pointed at it, so the **fastest demo needs zero frontend code**: call the number from a phone at the table (§8, option A). [C] |
+| What to avoid | The Python **Line SDK** and hosted Line deployments. *"Cartesia stops hosting Line SDK agents on December 1, 2026."* Build on Managed Agents. [C] https://docs.cartesia.ai/agents/migrate-from-line-sdk.md |
+| Cost | $0.06/min for agent calls, plus LLM tokens, plus $0.014/min for a Cartesia phone number. **Agent usage is billed in USD and is not covered by free or subscription credits**, so a card is needed. A 2-minute demo costs about $0.12 plus tokens. [C] https://docs.cartesia.ai/pricing.md |
+| Track | Cartesia is a Cal Hacks 13.0 sponsor [C]. The prize name and criteria are not published online [U]. Ask at the booth, including about agent credits. |
 
-## 2. Current flow, and where voice plugs in
+Legend used below: **[C]** confirmed in Cartesia/ElevenLabs docs on Oct 25 2026, **[U]** unverified.
+
+## 2. Current flow, and where the agent sits
 
 ```
-processBill (action)
-  intake → commitExtraction → commitMatch → [verifyVendor] → commitPolicy(decide)
-     │                                                           │
-     │                                   CLEARED: ROUTE_PAYMENT "<rail> APPROVED_FOR_PAYMENT"
-     │                                   HELD/BLOCKED: schedule investigate (CREAO → Claude)
-     ▼
-listBills subscription → Desk → story header + 4 cards
-humanResume (mutation): assign | approve | reject | send-draft  → re-renders
+processBill → decide() → BillRecord { status, decision.why, checks[].rationale, required_approver, payment }
+                       → investigate (CREAO/Claude) → InvestigationBrief { summary, findings, draft }
+listBills subscription → Desk (selected bill)
+humanResume: assign | approve | reject | send-draft          ← only a person, only from the UI
 ```
 
-Everything the voice needs already exists on `BillView` once the decision is committed:
+The voice agent is a **reader** of that state. It sits beside the desk and never on the decision path:
 
-| Spoken part | Source field | Who wrote it |
-|---|---|---|
-| Verdict | `status` | `decide()` |
-| Why | `decision.why` | `src/engine/explain.ts` (deterministic templates, master-spec §5.3) |
-| Failing checks | `decision.checks[]` where `outcome` is `HALT`/`BLOCK`, `.rationale` | engine |
-| Who must act | `decision.required_approver` | engine |
-| Human outcome | `status` `CLEARED`/`REJECTED` + `resolved_by: "HUMAN"` | `humanResume` |
-| Agent findings (optional, labelled) | `investigation.summary` when `status === "DONE"` | AI investigator, spoken with an "the agent says" prefix |
-
-**New pieces (all additive, nothing on the decision path changes):**
-
-1. `src/voice/script.ts`: pure `buildNarration(bill: BillView): Narration`. No IO, no model, no `Date.now()`. Turns the fields above into a short transcript.
-2. `convex/voice/narrate.ts`: Convex **action** `narrateBill({ billId })`. Builds the transcript, checks the cache, calls Cartesia `/tts/bytes` if needed, stores the mp3 in Convex file storage, returns a URL.
-3. `narrations` table: cache keyed by `transcript_hash` so replays and re-clicks cost zero credits.
-4. UI: a `Listen` button in the story header, plus an audio element. Lives in `src/components/desk/`.
-
-The pipeline (`processBill`, `commitPolicy`, `humanResume`) is **not edited**. Narration is generated on demand when the reviewer presses Listen. That keeps the 2-second FORM path and the decision path untouched.
+```
+ Browser (reviewer)                       Cartesia Managed Agent                Convex
+ ┌─────────────────┐  WebSocket audio     ┌──────────────────────┐  webhook    ┌──────────────────────────┐
+ │ VoicePanel      │◄────────────────────►│ prompt + Sonic + Ink │────tools───►│ httpAction /voice/*      │
+ │ mic → PCM16     │  client tools:       │ LLM from catalog     │  (GET,      │  → buildBillFacts() pure │
+ │ playback queue  │  get_selected_bill   │                      │  bearer)    │  → listBills/getBill     │
+ │ captions        │  show_bill           └──────────────────────┘             └──────────────────────────┘
+ └─────────────────┘                               │ call_completed webhook ─────► voiceCalls table
+ Phone (vendor, phase 2) ── Cartesia number ───────┘
+```
 
 ## 3. Hard rules
 
-1. **No LLM writes the transcript.** `buildNarration` is a template over engine output, the same way `explain.ts` is. The AI investigator's `summary` may be read only when `investigation.status === "DONE"`, only after the deterministic part, and only behind the spoken label "The investigator agent adds:". It is optional (`includeAgent` flag, default `true`).
-2. **Never speak a number the engine did not produce.** Amounts, percentages, and days come from `decision.why` and `checks[].rationale` verbatim, or from the same `data` fields `explain.ts` reads, formatted by `src/engine/format.ts`.
-3. **Voice cannot act.** No voice command approves, rejects, assigns, or pays. Listen is read-only.
-4. **Narration is not a state transition**, so it does not append to the audit chain (AGENTS.md invariant 4 covers state transitions). The `narrations` table records what was spoken, by which model and voice, for review.
-5. **Failure is quiet and local.** Cartesia down, no key, or out of credits → the Listen button shows the error inline (`Voice is unavailable: <reason>`). The bill, its status, and every other control are unaffected.
-6. **Key stays server-side.** `CARTESIA_API_KEY` lives in the Convex environment like `ANTHROPIC_API_KEY` and `CREAO_API_KEY`. The browser never calls Cartesia directly in v1 (avoids the unverified CORS question, §8).
+1. **No write tools.** Every webhook tool is a `GET` to a Convex HTTP action that only runs queries. There is no tool that maps to `humanResume`, `processBill`, `retryPayment`, or a Nessie call. Approval stays a button press by a person (CLAUDE.md §4).
+2. **Facts come from code.** The tools return `buildBillFacts()` output: status, `decision.why` verbatim, failing-check rationales verbatim, required approver, and payment status. These are the same strings the why-card shows. The LLM only puts them in conversational order.
+3. **The prompt pins the model to tool output.** *"Only state facts returned by a tool, in the tool's words for any number, date, or id. If a tool did not return it, say you don't know. You cannot approve, reject, or pay anything; tell the caller a person decides."* (Prompts are not a guarantee, which is why rule 1 exists: even if the agent says "approved", nothing changes.)
+4. **AI content is labelled.** The investigator's summary is returned in a separate `agent_findings` field. The prompt says to introduce it as *"The investigator agent found…"*.
+5. **Vendors see a whitelist.** The vendor tools return only that vendor's own invoices. They include status in vendor words (Received / Under review / Approved for payment / Paid / Not payable), the field the vendor needs to supply, and the payment reference once SENT. They never return approver roles, thresholds, other vendors, other properties' history, investigator findings, or audit rows.
+6. **Conversations are not state transitions**, so they add no row to the hash chain. Call records (transcript, `call_id`, bill ids discussed) are stored in a `voiceCalls` table for review. If a vendor supplies a correction (e.g. an invoice number), it is stored as a **note for a person**, never applied to the bill (phase 2, §7).
+7. **Keys stay server-side.** `CARTESIA_API_KEY` and `LINTEL_VOICE_TOOL_SECRET` live in the Convex env. The browser only ever holds a 5-minute access token. The `agent` grant is **not scoped to one agent** [C], so use a Cartesia account (or org) dedicated to Lintel.
 
-## 4. Cartesia API facts used by this spec
-
-Legend: **[C]** confirmed in Cartesia docs on Oct 25, 2026. **[U]** unverified.
+## 4. Cartesia facts this spec relies on
 
 | Item | Value |
 |---|---|
-| Base URL | `https://api.cartesia.ai` [C] |
-| Auth | `Authorization: Bearer <CARTESIA_API_KEY>` [C] |
-| Version header | `Cartesia-Version: 2026-08-14` (docs say it is the only allowed value) [C] |
-| Endpoint | `POST /tts/bytes` → audio bytes [C] |
-| Model | `sonic-3.6` (alias for latest stable). Pin `sonic-3.6-2026-08-27` for the demo so the voice does not change mid-weekend [C] |
-| Output | `{"container":"mp3","sample_rate":44100,"bit_rate":128000}` plays directly in `<audio>` [C] |
-| Tuning | `generation_config: { speed: 0.6–1.5, volume: 0.5–2.0, emotion: "neutral" \| "calm" \| … }` (sonic-3+) [C] |
-| Voice | `{"id": "<uuid>"}`. Default Skylar `db6b0ed5-d5d3-463d-ae85-518a07d3c2b4` (from docs examples) [C]. For a more "auditor" tone, try Daniel or Jacqueline via `GET /voices?q=Daniel` [C, IDs not looked up] |
-| Text normalization | `normalization: "auto"` (default) reads `$5,680.00` and dates naturally [C that the field exists; how well it reads `+281.0%` is U, test it] |
-| Per-request char limit | Not documented for Sonic 3.x [U]. Keep transcripts ≤ 450 chars (§5.3) |
-| Latency | Vendor claims < 90 ms time to first audio for 3.6 [U]. `/tts/bytes` waits for the full clip; expect well under 1–2 s for 400 chars [U, measure] |
-| Pricing | Free: 20K credits/mo, TTS concurrency 2. Pro $5: 100K. 1 credit = 1 character [C]. ~200–450 chars per bill → ~45–100 narrations on free tier, which is why §6 caches |
-| SDK | `@cartesia/cartesia-js` exists [C]. **Not needed**: one `fetch` call in a Convex action avoids a new dependency (ai-workflow-rules §4) |
+| Base / version | `https://api.cartesia.ai`, header `Cartesia-Version: 2026-08-14`, `Authorization: Bearer sk_car_…` [C] |
+| Create / update agent | `POST /v1/agents`, `PATCH /v1/agents/{agent_id}` [C]. Fields: `instructions` (supports `{{dynamic_variables}}`), `initial_message`, `model.id`, `temperature`, `language.primary`, `audio.input.keyterms`, `audio.output.voice_id` / `speed`, `turn`, `tools` (list of tool ids; **an update replaces the whole list**), `system_tools` (`end_call`, DTMF, transfer). Every change is versioned. https://docs.cartesia.ai/agents/configuration.md |
+| LLM | Managed catalog, `GET /v1/agents/models`, covering OpenAI, Anthropic, and Google (e.g. `claude-sonnet-5`, added Sep 2026). **No bring-your-own-key** on Managed Agents; Cartesia bills the tokens [C] |
+| Webhook tool | `POST /v1/agents/tools` `{ type:"webhook", name, description, execution_mode:"immediate", response_timeout_secs, api_schema:{ url (HTTPS, {placeholders}), method, path_params_schema, query_params_schema, request_headers, authentication:{bearer} } }`. A 2xx text body becomes the tool result (max 16 KiB). Non-2xx or timeout gives an error result and the call continues [C] https://docs.cartesia.ai/agents/webhook-tools.md |
+| Client tool | `{ type:"client" }`, WebSocket only. The server sends `client_tool_call {tool_name, parameters, tool_call_id, expects_response}`; we reply with `client_tool_result {tool_call_id, result, is_error}` [C] https://docs.cartesia.ai/agents/client-tools.md |
+| Browser socket | `wss://api.cartesia.ai/v1/agents/websocket/{agent_id}?cartesia_version=2026-08-14&access_token=…` [C] |
+| Socket events | Client sends `session_create` (within 10 s; `audio.input_format` `pcm_16000` \| `pcm_24000` \| `pcm_44100` \| `mulaw_8000`), then `audio_input` (base64) and `client_tool_result`. Server sends `session_ready` (`call_id`), `audio_output` (base64), `audio_output_clear` (barge-in, so flush playback), `client_tool_call`, `turn_started`, `turn_output_text_delta` (captions), `turn_ended`, `error` [C] https://docs.cartesia.ai/line/integrations/websocket-api.md. **Do not use** the legacy `wss://api.cartesia.ai/agents/stream/{agent_id}` (`start` / `media_input` events) |
+| Passing the bill id | Unclear whether `session_create` accepts dynamic variables [U]. We don't depend on it: the `get_selected_bill` client tool returns it |
+| Phone | Cartesia US numbers, Twilio import, or SIP. Inbound: `PATCH /agents/phone-numbers/{id}` `{agent_id}`. Outbound: `POST /agents/calls` `{from_number_id, agent_id, ringing_timeout_seconds, outbound_calls:[{to_number, dynamic_variables}]}` [C]. The `/v1` prefix is inconsistent across pages [U], so check the API reference |
+| After the call | `GET /agents/calls/{call_id}` (transcript), `/audio` (WAV). Webhooks `POST /agents/webhooks` with events `call_started`, `call_completed`, `call_failed`, `call_turn`, `post_call_analysis`; secret in the `x-webhook-secret` header; dedupe on `webhook_request_id` [C] |
+| Interruptions | Handled by Cartesia (`audio_output_clear`, `was_interrupted` per turn) [C] |
+| End-to-end latency | Not published for agents [U]. Measure on day one |
 
-Request the action sends:
+## 5. Lintel side
 
-```json
-POST https://api.cartesia.ai/tts/bytes
-Authorization: Bearer $CARTESIA_API_KEY
-Cartesia-Version: 2026-08-14
-Content-Type: application/json
-
-{
-  "model_id": "sonic-3.6-2026-08-27",
-  "transcript": "<buildNarration(bill).transcript>",
-  "voice": { "id": "db6b0ed5-d5d3-463d-ae85-518a07d3c2b4" },
-  "language": "en",
-  "output_format": { "container": "mp3", "sample_rate": 44100, "bit_rate": 128000 },
-  "generation_config": { "speed": 1.05, "volume": 1, "emotion": "neutral" }
-}
-```
-
-Sources: https://docs.cartesia.ai/api-reference/tts/bytes, https://docs.cartesia.ai/build-with-cartesia/tts-models, https://cartesia.ai/pricing, https://docs.cartesia.ai/api-reference/voices/list.
-
-## 5. The transcript (`src/voice/script.ts`)
-
-### 5.1 Types (local to `src/voice/`, not in the frozen contract)
+### 5.1 Deterministic facts (`src/voice/facts.ts`, pure)
 
 ```ts
-export interface Narration {
-  bill_id: BillId;
-  /** What is sent to Cartesia. ≤ 450 chars. */
-  transcript: string;
-  /** Same text split by source, for the on-screen caption and tests. */
-  segments: Array<{ source: "CODE" | "AI_INVESTIGATOR"; text: string }>;
-  /** sha256(transcript + model_id + voice_id). Cache key. */
-  transcript_hash: string;
+export interface BillFacts {                    // reviewer view
+  bill_id: BillId; vendor: string | null; property: string | null; amount: string | null;  // "$5,680.00"
+  invoice_number: string | null; due_date: IsoDate | null;
+  status: BillStatus; resolved_by: ResolvedBy;
+  why: string;                                  // decision.why verbatim
+  failing_checks: Array<{ check: CheckId; outcome: "HALT" | "BLOCK"; rationale: string }>;
+  required_approver: string | null;             // "VP Finance", "Property manager", "Operator", null
+  can_be_approved: boolean;                     // humanRefusal(bill,"approve",brief) === null
+  next_step: string;                            // same copy as the desk's story.ts next-step line
+  payment: { state: "NONE" | "APPROVED_FOR_PAYMENT" | "SCHEDULED" | "SENT" | "FAILED"; reference: string | null; via: string | null };
+  agent_findings: { summary: string; findings: string[] } | null;   // only when brief DONE; labelled AI
 }
-export type BuildNarrationFn = (bill: BillView, opts?: { includeAgent?: boolean }) => Narration;
+export interface VendorInvoiceFacts {           // vendor view, whitelist only (rule 5)
+  invoice_number: string | null; amount: string | null; due_date: IsoDate | null;
+  vendor_status: "RECEIVED" | "UNDER_REVIEW" | "APPROVED_FOR_PAYMENT" | "PAID" | "NOT_PAYABLE";
+  vendor_message: string;                       // deterministic template per reason code, e.g. "We are missing the invoice number."
+  payment_reference: string | null;             // only when payment SENT
+}
+export function buildBillFacts(view: BillView): BillFacts;
+export function buildVendorFacts(view: BillView): VendorInvoiceFacts;
 ```
 
-`transcript_hash` uses the same sha256 helper as `src/audit/chain.ts` (read-only import, no edit to that file).
+Both functions are pure: no IO, no model, no `Date.now()`. They reuse `src/engine/format.ts`, `humanRefusal`, and the copy in `story.ts` (moved, or duplicated in `src/voice/` if importing it would pull React in). Add `src/voice` to `boundary.test.ts`'s no-model list.
 
-### 5.2 Template, in order
+`vendor_message` templates (reason code → what the vendor hears) live in one table in `facts.ts`:
 
-1. **Opener (status + vendor + amount):**
-   - CLEARED auto: `"{vendor}, {amount}. Cleared."`
-   - CLEARED by human: `"{vendor}, {amount}. Approved by {approver label}."`
-   - HELD: `"{vendor}, {amount}. Held for you."`
-   - BLOCKED: `"{vendor}, {amount}. Blocked."`
-   - REJECTED: `"{vendor}, {amount}. Rejected by a reviewer."`
-2. **Why:** `decision.why` verbatim, with two speech substitutions only: a leading `+`/`−` before a percentage becomes "up"/"down" (`+281.0%` → `up 281.0 percent`), and `vs` → `versus`. Nothing else is rewritten.
-3. **Who acts (HELD only):** from `required_approver`:
-   - `OPERATOR` → `"An operator needs to fix the details before anyone can approve it."`
-   - `PROPERTY_MANAGER` → `"It needs a property manager's approval."`
-   - `VP_FINANCE` → `"It is over five thousand dollars, so it needs VP Finance."` (only when the amount is above `POLICY` VP threshold; otherwise the generic `"It needs VP Finance's approval."`)
-   - BLOCKED → `"Nothing will be paid. Blocked bills have no approve control."`
-   - CLEARED → `"Approved for payment via {RAIL_LABEL[rail]}."` If a Capital One payment exists (sibling spec `capital-one-payments.md`), use its status: `"Paid through Capital One, reference ending {last4}."` only when `payment.status === "SENT"`. Never claim money moved without a stored reference (ai-workflow-rules §8).
-4. **Other failing checks (max 2):** if more than one check failed, add `"Also: {rationale}."` for up to two more `HALT`/`BLOCK` checks, in `CheckId` order. E.g. BILL-LINESUM speaks the line-sum block, then "Also" the amount spike.
-5. **Agent (optional):** if `includeAgent` and the brief is DONE: `"The investigator agent adds: {first sentence of investigation.summary}."` Labelled so a listener knows it is AI.
+| Reasons | Vendor hears |
+|---|---|
+| `MISSING_FIELD` | "We could not find the {fields} on your invoice." |
+| `EXACT_DUPLICATE` / `FUZZY_DUPLICATE` | "This looks like invoice {prior_invoice}, which we already have. If it is a different charge, a person on our team will review it." |
+| `NEEDS_PROPERTY_MATCH` | "We need to confirm which property this service was for." |
+| `VENDOR_UNVERIFIED` / `CRS_*` | "Your company is going through our vendor verification." |
+| spike, limit, approval reasons | "It is under review." (no thresholds, no approver names) |
+| CLEARED, no payment | "It is approved for payment." |
+| payment SENT | "It was paid; the reference ends in {last4}." |
 
-Labels (`APPROVER_LABEL`, `RAIL_LABEL`) are imported from `src/components/desk/contract.ts` only if that does not pull React in; otherwise duplicate the two small maps in `src/voice/labels.ts`.
+### 5.2 Tools
 
-### 5.3 Length
+All tools are Convex `httpAction`s in a new `convex/http.ts` router plus `convex/voice/tools.ts`. Each checks `Authorization: Bearer ${LINTEL_VOICE_TOOL_SECRET}` (set on the Cartesia tool's `authentication`). It runs `ctx.runQuery` only and returns JSON text under 16 KiB. These are Convex HTTP actions, not a Next route handler, so master-spec decision #13 still holds.
 
-If the transcript exceeds 450 chars, drop step 5, then step 4, never steps 1–3. If steps 1–3 alone exceed 450 chars, cut `decision.why` at the last sentence boundary under the limit. Test it.
+| Tool | Agent | Type | Request | Returns |
+|---|---|---|---|---|
+| `get_selected_bill` | reviewer | client | — | `{ bill_id }` of the bill open on screen (from `useDesk`) |
+| `get_bill_explanation` | reviewer | webhook GET `/voice/bill/{bill_id}` | `bill_id` | `BillFacts` |
+| `list_open_bills` | reviewer | webhook GET `/voice/open` | — | ≤ 10 rows `{ bill_id, vendor, amount, status, required_approver }`, HELD first, plus `totals` from `listBills` |
+| `find_bills` | reviewer | webhook GET `/voice/find?vendor=&invoice=&amount=` | any of these | ≤ 5 rows (exact `normalizeInvoice` or vendor-name match; no fuzzy guessing) |
+| `show_bill` | reviewer | client | `bill_id` | Selects that bill on the desk (UI only), `{ ok }` |
+| `lookup_my_invoice` | vendor | webhook GET `/voice/vendor/invoice?vendor_id={{vendor_id}}&invoice=` | `invoice`; `vendor_id` from a dynamic variable set by us, never from the caller | `VendorInvoiceFacts` or `{ found:false }` |
+| `get_call_bill` | vendor (outbound) | webhook GET `/voice/vendor/bill/{{bill_id}}` | from dynamic variables | `VendorInvoiceFacts` |
+| `end_call` | both | system | — | — |
 
-### 5.4 Golden transcripts (become `tests/voice/script.test.ts`)
+No `transfer` system tool in v1. The vendor agent has **no** reviewer tools, so even a clever caller cannot reach `BillFacts`.
 
-Built from master-spec §6 outcomes; exact strings are filled in when `explain.ts` output is captured from the fixtures.
+### 5.3 Two agent configs (same voice, different prompt and tools)
 
-| Bill | Expected transcript starts with | Must contain |
+Created once by `scripts/cartesia-agents.mjs` (run by hand; prints the agent ids into the Convex env as `CARTESIA_REVIEWER_AGENT_ID` and `CARTESIA_VENDOR_AGENT_ID`; idempotent by name).
+
+- **Lintel Reviewer**
+  - `initial_message`: "Hi, I'm Lintel. Ask me about any bill on the desk."
+  - Tools: `get_selected_bill`, `get_bill_explanation`, `list_open_bills`, `find_bills`, `show_bill`, `end_call`.
+  - `keyterms`: vendor names from `getPortfolio`, plus "EBMUD", "PG&E", "SFPUC", "Recology", "VP Finance".
+  - Model: pick from `GET /v1/agents/models` (try `claude-sonnet-5`; a cheaper mini model if latency is better).
+  - Voice: a "stable" Sonic voice. Skylar `db6b0ed5-d5d3-463d-ae85-518a07d3c2b4` is the docs default; Daniel or Jacqueline sound crisper. Look up the IDs with `GET /voices?q=`.
+- **Lintel Vendor Line**
+  - `initial_message`: "Thanks for calling Lintel accounts payable. Which invoice are you calling about?"
+  - Tools: `lookup_my_invoice`, `get_call_bill`, `end_call`.
+  - Prompt adds: never discuss other vendors or internal rules, never promise a payment date the tool did not return, and offer a callback from a person for anything else.
+
+### 5.4 Browser voice panel (Piyush lane, `src/components/desk/voice/`)
+
+- **`useVoiceAgent.ts`** (~150–200 lines, no new dependency):
+  1. Call the Convex action `startVoiceSession()`. It mints `POST /access-token` `{grants:{agent:true}, expires_in:300}` and returns `{ token, agent_id }`.
+  2. Open the socket and send `session_create` with `pcm_16000` input.
+  3. Mic: `getUserMedia` → `AudioWorklet` downsample to 16 kHz → Int16 → base64 → `audio_input` every ~100 ms.
+  4. Playback: decode `audio_output` into a queue of `AudioBufferSourceNode`s; on `audio_output_clear`, stop and flush.
+  5. Answer `client_tool_call` for `get_selected_bill` and `show_bill`.
+  6. Captions: build from `turn_output_text_delta`.
+
+  The output sample rate and encoding of `audio_output` must be confirmed [U]. Check `session_create`'s `audio.output_delivery` options first.
+- **UI:**
+  - A `Talk to Lintel` secondary button in the story header (not lime) opens a slim panel over card 3.
+  - The panel has a live mic level, captions (the agent's lines in white, the reviewer's in muted), and a `Hang up` button. Each tool call shows as a small "CODE" actor chip (e.g. *looked up BILL-…*) so the judge sees that facts came from code.
+  - Errors show inline. `Esc` hangs up. Switching bills mid-call is fine, because the agent asks `get_selected_bill` again.
+- The desk's `DeskActions` gains `startVoiceSession()`, wired in `useConvexDesk.ts`.
+
+### 5.5 Call records
+
+- `POST /voice/webhooks/cartesia` httpAction:
+  - verifies `x-webhook-secret`;
+  - dedupes on `webhook_request_id`;
+  - on `call_completed`, stores `{ call_id, agent, started_at, duration_s, transcript, bill_ids_discussed (from tool-call params), caller (masked phone for vendor calls) }` in `voiceCalls`.
+- New table, owned by Anmol in `convex/schema.ts` (additive): `voiceCalls` with indexes `by_callId` and `by_billId`.
+- Optional: the History tab in the Details modal lists voice calls that touched this bill (read-only).
+
+## 6. Contract changes (additive, need the 👍 in ai-workflow-rules §2)
+
+- `PortfolioResponse.flags.voice_enabled: boolean` (true when `CARTESIA_API_KEY` and `CARTESIA_REVIEWER_AGENT_ID` are set).
+- Phase 2 only: `Vendor.phone?: string | null` (E.164, entered by an admin in Properties & vendors), and an optional `BillView.voice_calls?` if the History tab shows them.
+- No change to `BillStatus`, `Decision`, `AuditAction`, or the engine.
+
+## 7. Phase 2: vendor phone line
+
+1. Provision a Cartesia US number (`cartesia phone-numbers provision` or the dashboard). Assign it to **Lintel Vendor Line** for inbound calls.
+2. **Inbound** callers are unauthenticated, so `vendor_id` is resolved deterministically. Match the caller ID against `Vendor.phone`. No match → the agent asks for the vendor name and invoice number, and `lookup_my_invoice` requires **both** to match exactly before it returns anything. Otherwise: "I can't find that; a person will call you back."
+3. **Outbound** happens only from a person's click. A HELD bill whose investigator draft is `VENDOR_EMAIL` gets a `Call vendor` button next to `Send`. It runs the Convex action `callVendor({ billId })`, which:
+   - checks the bill is HELD and `Vendor.phone` is set;
+   - calls `POST /agents/calls` with `dynamic_variables { bill_id, vendor_id, vendor_name, invoice_number }`;
+   - appends a `HUMAN_OPERATOR · DRAFT_SENT · INFO · "Voice call placed to {vendor}"` audit row. This reuses the existing action, because a person sending a follow-up is already audited that way.
+   - A person pressing the button counts as consent for that call. Calling anyone requires TCPA-compliant consent; for the demo, the vendor phone is a teammate's.
+4. **Vendor corrections** (e.g. they read out the missing invoice number) are captured from the post-call transcript into `voiceCalls.vendor_note`. They show in card 3 as *"Vendor said on a call: invoice # 4471. Verify and re-enter."* A person re-runs the bill. The agent never edits a bill.
+
+## 8. Demo options (pick by how much time is left)
+
+| Option | What the judge sees | Frontend code | Risk |
+|---|---|---|---|
+| **A. Phone-in reviewer** | Point a Cartesia number at Lintel Reviewer (with `find_bills` / `list_open_bills`, no client tools). The judge calls it on speaker: "Why is the EBMUD bill held?" | none | Lowest. Needs only the agent, webhook tools, and the number |
+| **B. In-browser panel** | `Talk to Lintel` on the selected bill; the screen jumps to bills as they're discussed | §5.4 | Medium: Web Audio plumbing |
+| **C. B + outbound vendor call** | The reviewer presses `Call vendor` and a teammate's phone rings with the vendor agent | §5.4 + §7 | Highest |
+
+Recommendation: build **A first** (≈2 hours, and it proves the tools), then B. C is a stretch.
+
+## 9. Cartesia vs ElevenLabs (why we're still choosing Cartesia)
+
+| | Cartesia Managed Agents | ElevenLabs Agents |
 |---|---|---|
-| BILL-101 PG&E $2,290.40 | `PG&E, $2,290.40. Cleared.` | `down 2.1 percent`, `utility portal` |
-| BILL-102 Recology $680.00 | `Recology, $680.00. Blocked.` | `already paid`, `Nothing will be paid` |
-| BILL-103 EBMUD $5,680.00 | `EBMUD, $5,680.00. Held for you.` | `up 281.0 percent`, `VP Finance` |
-| BILL-104 Bayline $420.00 | `Bayline Plumbing, $420.00. Held for you.` | `0.80`, `operator` |
-| CHIP-FUZZY-DUP $686.00 | `Recology, $686.00. Blocked.` | `RW-99201`, `5 days apart` |
-| BILL-LINESUM | `SFPUC, $1,850.00. Blocked.` | `do not add up`, `Also:` |
-| Any bill, brief DONE | — | `The investigator agent adds:` appears last, segment source `AI_INVESTIGATOR` |
-| Any bill, brief PENDING | — | no agent segment |
+| Server setup | API key, REST agent + webhook tools [C] | API key (`xi-api-key`), agent + server tools [C] |
+| Browser | Raw WebSocket + our own mic/playback code (~150–200 lines) [C] | `@elevenlabs/react` `useConversation` handles mic and WebRTC [C] |
+| Browser auth | `POST /access-token` agent grant, not agent-scoped [C] | Signed URL per agent, 15 min [C] |
+| LLM | Managed catalog, no BYO key [C] | Catalog + custom LLM endpoint [C] |
+| Phone | Native numbers, Twilio, SIP, batch outbound [C] | Twilio, SIP, batch outbound [C] |
+| Hackathon | **Sponsor at Cal Hacks 13.0** | Not our track |
 
-Plus: `buildNarration` is pure (same input → same output and hash); added to the boundary test's "no fetch / no model / no Date.now" list.
+ElevenLabs is somewhat easier in the browser. Cartesia is the same effort everywhere else, and it is the sponsor. Option A in §8 removes the browser gap entirely for the first demo.
 
-## 6. Server action and cache (`convex/voice/narrate.ts`)
+## 10. Risks and open questions
 
-```
-narrateBill({ billId, includeAgent? })  — public action
-  1. view = runQuery(getBill)                         → unknown id: ConvexError("Unknown bill.")
-  2. n = buildNarration(view, { includeAgent })
-  3. hit = runQuery(internal.voice.narrate.byHash, { hash: n.transcript_hash })
-     hit → return { url: storage.getUrl(hit.storageId), transcript, segments, cached: true }
-  4. !CARTESIA_API_KEY or LINTEL_VOICE_ENABLED !== "true" → ConvexError("Voice is off.")
-  5. fetch POST /tts/bytes (body §4), timeout 15 s (AbortController)
-     non-2xx → ConvexError(`Voice is unavailable: ${status} ${short body}`)   (402/429 = out of credits / rate limit)
-  6. storageId = storage.store(Blob(bytes, "audio/mpeg"))
-  7. runMutation(internal.voice.narrate.save, { billId, hash, transcript, model_id, voice_id, storageId, chars, created_at })
-  8. return { url, transcript, segments, cached: false }
-```
-
-New table (Anmol owns `convex/schema.ts`, additive):
-
-```ts
-narrations: defineTable({
-  billId: v.string(),
-  transcriptHash: v.string(),
-  transcript: v.string(),
-  modelId: v.string(),
-  voiceId: v.string(),
-  storageId: v.id("_storage"),
-  chars: v.number(),
-  createdAt: v.string(),
-}).index("by_hash", ["transcriptHash"]).index("by_billId", ["billId"]),
-```
-
-Because the hash covers the transcript, a bill whose status changes (HELD → CLEARED after approval) gets a new narration automatically; the old one stays as a record. `resetDemo`-style wipes, if any return, should leave this table alone (it is a pure cache).
-
-Env (Convex dashboard, never `.env` in git): `CARTESIA_API_KEY`, `LINTEL_VOICE_ENABLED=true`, optional `CARTESIA_VOICE_ID`, `CARTESIA_MODEL_ID`.
-
-`PortfolioResponse.flags` gains `voice_enabled: boolean` (**contract change, additive optional field**, needs the 👍 process in ai-workflow-rules §2). Until it lands, the UI can show Listen always and rely on the "Voice is off." error.
-
-## 7. UI (Piyush lane, `src/components/desk/`)
-
-- **Story header:** a quiet secondary `Listen` button with a speaker icon, right of the amount. Not lime (lime is reserved for the one primary action, ui-context §2).
-- States: idle `Listen` → `Preparing…` (spinner, only on a cache miss) → playing `Pause` with a thin progress line → ended back to `Listen`. Error renders inline in red under the header, never `alert()`.
-- **Caption:** while playing, show the transcript under the verdict in 14px muted text, with the `AI_INVESTIGATOR` segment prefixed by the AI actor chip so it is visually labelled the same way it is spoken.
-- **Keyboard:** `L` toggles Listen on the selected bill (`J` stays Test a bill). Add to `useDesk`.
-- `DeskActions` gains `narrate(billId: string): Promise<{ url: string; transcript: string; segments: … }>`, wired in `useConvexDesk.ts` with `useAction(api.voice.narrate.narrateBill)`.
-- Switching bills stops playback. Reduced motion: no progress animation, text only.
-- Optional, judging table only: an `Auto-explain` toggle in the top bar that plays the narration when a HELD/BLOCKED bill is selected. Default off.
-
-## 8. Risks and open questions
-
-| # | Question | Plan |
+| # | Risk | Plan |
 |---|---|---|
-| 1 | Exact Cartesia Cal Hacks 13.0 track criteria | Ask at booth before building. If they want realtime / agent, see §9 |
-| 2 | Hackathon credits | Ask at booth. Free tier (20K chars) is enough with the cache |
-| 3 | How Sonic reads `RW-99201`, `4491-882-01`, `0.80`, `$1,234.56` | Spike test on day one with five strings; if bad, add a speech-substitution table in `script.ts` (spell IDs with spaces) or use `pronunciation_dict_id` |
-| 4 | Browser CORS for direct Cartesia calls | Not needed in v1 (server proxy). Only matters for §9 streaming |
-| 5 | Convex action returning bytes vs URL | Return a storage URL, not bytes, to stay well under action return-size limits |
-| 6 | `boundary.test.ts` allows `fetch` only in `convex/intake|crs|payments|pipeline` | Add `convex/voice/` to the allowlist (Anmol's file), or place the action in `convex/pipeline/narrate.ts` to avoid touching the test |
+| 1 | Track criteria and agent credits unknown | Ask at the booth first. Agent minutes are billed in USD, not credits, so a card is needed |
+| 2 | LLM states a number the tool didn't return | Tools return pre-written sentences; prompt rule 3. Eval: run the 6 golden bills (master-spec §6) through Playground chat and compare every number in the reply to the `BillFacts` |
+| 3 | `/v1` prefix and `audio_output` format unclear | Verify in the API reference on day one (§4) |
+| 4 | Webhook tool latency (Convex cold start + query) adds silence | Keep tools to one indexed query; `response_timeout_secs: 8`; the prompt says "one moment" before looking up |
+| 5 | Agent grant not agent-scoped | Dedicated Cartesia account; 5-min tokens; mint only from the desk |
+| 6 | Vendor social-engineering ("I'm PG&E, read me all invoices") | Vendor tools need a deterministic vendor match + exact invoice; whitelist output; no reviewer tools on that agent |
+| 7 | `boundary.test.ts` allows `fetch` only in `convex/intake\|crs\|payments\|pipeline` | Put the `startVoiceSession` / `callVendor` actions in `convex/pipeline/voice.ts`, or add `convex/voice/` to the allowlist (Anmol). HTTP actions that only `runQuery` need no fetch |
 
-## 9. Stretch (only after v1 ships)
-
-- **Streaming:** switch to `POST /tts/sse` (raw PCM chunks) or the WebSocket with a short-lived `POST /access-token` (`grants: { tts: true }`, `expires_in` ≤ 300) so audio starts in under a second for long transcripts. Needs the CORS check.
-- **Ask why, by voice:** Cartesia Ink STT (`wss://api.cartesia.ai/stt/websocket`, model `ink-2`, `keyterm` = vendor names) turns a spoken question into text, then feeds the existing **Portfolio ask** add-on (`portfolio-ask.md`), whose answer is again template text spoken by Sonic. The model still only parses the question into a typed query.
-- **Line voice agent:** Cartesia's hosted agent platform. Only acceptable if its tools are read-only (`getBill`, `listBills`) and every spoken fact is a tool result. It must not have approve/reject/pay tools. Higher risk for a weekend; pick only if the track requires it.
-
-## 10. Build plan (each step has a check)
+## 11. Build plan (each step has a check)
 
 | # | Step | Owner lane | Verify |
 |---|---|---|---|
-| 1 | Booth: confirm track criteria + credits; get API key into Convex env | any | key works with the curl in §4, mp3 plays |
-| 2 | Spike: speak five hard strings (§8 #3), choose voice + speed | any | listen; pick substitutions |
-| 3 | `src/voice/script.ts` + `tests/voice/script.test.ts` golden rows (§5.4) | new folder, Piyush or Pranil | `npm test` green, boundary test includes `src/voice` |
-| 4 | `narrations` table + `convex/voice/narrate.ts` (or `convex/pipeline/narrate.ts`) | Anmol (schema), Pranil (action) | call `narrateBill` from the Convex dashboard on BILL-103: returns a URL; second call `cached: true`, no credits used |
-| 5 | `voice_enabled` flag in `PortfolioResponse` (contract 👍) | Anmol | `getPortfolio` shows it |
-| 6 | Listen button, caption, `L` key, inline errors | Piyush | play every golden bill in the browser; kill the key → inline error, bill unchanged |
-| 7 | Demo line: on EBMUD, press Listen at 0:25 instead of narrating the why-card | Pranil (script) | full 2-minute run twice, no console errors |
+| 1 | Booth: criteria, credits; key + billing on a dedicated account | any | `GET /v1/agents/models` returns the catalog |
+| 2 | `src/voice/facts.ts` + `tests/voice/facts.test.ts` on the golden bills (BillFacts and VendorInvoiceFacts) | new folder (Pranil or Piyush) | `npm test` green; vendor facts for BILL-103 contain no "VP Finance" or "%" |
+| 3 | `convex/http.ts` + `convex/voice/tools.ts` (bearer check, queries only) | Anmol / Pranil | `curl` each `/voice/*` route with and without the secret: 200 with facts, 401 without |
+| 4 | `scripts/cartesia-agents.mjs` creates the tools + the Reviewer agent | Pranil | Playground chat: "why is EBMUD held?" → reply quotes "+281.0%" and "VP Finance" exactly |
+| 5 | **Demo option A**: phone number → Reviewer agent | Pranil | Call it; ask about 3 golden bills; the numbers match the desk |
+| 6 | `startVoiceSession` action + `useVoiceAgent` + panel (option B) | Piyush | Talk through EBMUD and BLOCKED Recology in Chrome; barge-in stops playback; `show_bill` switches the tab |
+| 7 | `voiceCalls` webhook + table | Anmol | After a call, the row has a transcript and bill ids |
+| 8 | Phase 2: Vendor agent, `Vendor.phone`, `Call vendor`, inbound match | all | Teammate's phone rings; asking about another vendor's invoice gets "I can't find that" |
 
-Estimated effort: steps 3–6 ≈ 3–4 focused hours.
+Estimated effort: steps 2–5 ≈ 3–4 hours; step 6 ≈ 2–3 hours; phase 2 ≈ 3 hours.
 
 ## Checklist (update only this list)
 
-- [ ] Track criteria + credits confirmed at the Cartesia booth
-- [ ] Voice spike: hard strings read correctly, voice chosen
-- [ ] `buildNarration` + golden tests
-- [ ] `narrations` cache table + `narrateBill` action
-- [ ] `voice_enabled` flag (contract change approved)
-- [ ] Listen button + caption + `L` shortcut
-- [ ] Demo script updated
+- [ ] Booth: track criteria + credits; account and billing set up
+- [ ] `buildBillFacts` / `buildVendorFacts` + tests
+- [ ] Convex `/voice/*` read-only HTTP tools with bearer secret
+- [ ] Reviewer agent + tools created by script
+- [ ] Demo option A (phone-in reviewer) works
+- [ ] In-browser voice panel (option B)
+- [ ] `voiceCalls` webhook + table
+- [ ] Phase 2: vendor line (inbound + person-triggered outbound)
