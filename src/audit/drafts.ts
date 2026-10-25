@@ -72,7 +72,7 @@ export function decisionAuditDrafts(input: {
       actor: "PAYMENT_ROUTER",
       action: "ROUTE_PAYMENT",
       decision: "EXECUTE",
-      rationale: `${decision.rail} SIMULATED`,
+      rationale: `${decision.rail} APPROVED_FOR_PAYMENT`,
     });
   }
   return drafts;

@@ -12,12 +12,13 @@ import { AgentDraft, ProviderTags } from "./Agent";
 import type { DeskActions, DeskData } from "./contract";
 import { Decide } from "./Decide";
 import { checksSummary, DetailsModal, type DetailsTab } from "./Details";
-import { PolicySheet, RealVsSimulatedSheet } from "./Drawers";
+import { PolicySheet } from "./Drawers";
 import { AssignControls, Evidence, evidenceTitle, PaymentLine } from "./Evidence";
 import { CameInLine } from "./Pieces";
+import { Portfolio } from "./Portfolio";
 import { storyKind, storyOf } from "./story";
 import { TestBill } from "./TestBill";
-import { TopBar } from "./TopBar";
+import { InsightStrip, TopBar } from "./TopBar";
 import { Button, CARD, ErrorLine, Icon, Money, shortDate, StatusChip, StatusMark, T } from "./ui";
 import { useDesk, type DeskHints, type DeskState } from "./useDesk";
 
@@ -25,43 +26,46 @@ const ORDER: Record<BillStatus, number> = { HELD: 0, BLOCKED: 1, CLEARED: 2, REJ
 
 export function Desk({ data, actions, hints }: { data: DeskData; actions: DeskActions; hints?: DeskHints }) {
   const desk = useDesk(data, actions, hints);
-  const { bills, selected, replaying, testOpen, setTestOpen, drawer, setDrawer } = desk;
+  const { bills, selected, loading, view, testOpen, setTestOpen, drawer, setDrawer } = desk;
   const overlay = testOpen || drawer !== null;
   const close = () => { setTestOpen(false); setDrawer(null); };
+  const noPortfolio = data.portfolio !== undefined && data.portfolio.properties.length === 0;
 
   return (
     <main className="relative flex h-screen min-h-[640px] flex-col bg-bar text-paper">
       <TopBar
-        totals={data.totals}
-        chainIntact={data.auditChainIntact}
-        replaying={replaying}
-        onTest={() => { setDrawer(null); setTestOpen(true); }}
+        view={view}
+        onView={(v) => { close(); desk.setView(v); }}
+        policyOpen={drawer === "policy"}
+        onPolicy={() => { setTestOpen(false); setDrawer(drawer === "policy" ? null : "policy"); }}
         testOpen={testOpen}
-        onDrawer={(k) => { setTestOpen(false); setDrawer(k); }}
-        onReplay={desk.replay}
+        onTest={() => { setDrawer(null); setTestOpen(true); }}
       />
-      <BillTabs bills={bills} selectedId={selected?.id ?? null} flashId={desk.flashId} replaying={replaying} onSelect={desk.select} />
+      <InsightStrip totals={data.totals} chainIntact={data.auditChainIntact} loading={loading} />
 
-      <div className="min-h-0 flex-1 overflow-y-auto">
-        {desk.replayError && (
-          <div className="flex items-center gap-4 px-6 pt-6">
-            <ErrorLine>Replay failed: {desk.replayError}</ErrorLine>
-            <Button kind="secondary" onClick={desk.replay}>Try again</Button>
+      {view === "portfolio" ? (
+        <Portfolio data={data} actions={actions} onBill={desk.select} covered={overlay} />
+      ) : (
+        <>
+          <BillTabs bills={bills} selectedId={selected?.id ?? null} flashId={desk.flashId} loading={loading} onSelect={desk.select} />
+          <div className="min-h-0 flex-1 overflow-y-auto">
+            {loading ? <StorySkeleton /> : selected ? (
+              <Story key={selected.id} bill={selected} desk={desk} />
+            ) : (
+              <div className="flex flex-col items-start gap-4 px-6 py-12">
+                <p className={T.hero}>No bills on the desk.</p>
+                <p className={`${T.body} text-muted`}>
+                  {noPortfolio ? "Add your properties and vendors first, so bills can be matched." : "Upload a bill or type one in to run it through the checks."}
+                </p>
+                <div className="flex gap-2">
+                  {noPortfolio && <Button kind="solid" onClick={() => desk.setView("portfolio")}>Add properties &amp; vendors</Button>}
+                  <Button kind={noPortfolio ? "secondary" : "solid"} onClick={() => setTestOpen(true)}><Icon name="plus" /> Test a bill</Button>
+                </div>
+              </div>
+            )}
           </div>
-        )}
-        {replaying ? <StorySkeleton /> : selected ? (
-          <Story key={selected.id} bill={selected} desk={desk} />
-        ) : !desk.replayError ? (
-          <div className="flex flex-col items-start gap-4 px-6 py-12">
-            <p className={T.hero}>No bills on the desk.</p>
-            <p className={`${T.body} text-muted`}>Replay the Saturday intake, or test a bill of your own.</p>
-            <div className="flex gap-2">
-              <Button kind="solid" onClick={() => setTestOpen(true)}><Icon name="plus" /> Test a bill</Button>
-              <Button kind="secondary" onClick={desk.replay}>Replay Saturday intake</Button>
-            </div>
-          </div>
-        ) : null}
-      </div>
+        </>
+      )}
 
       {overlay && (
         <div className="absolute inset-x-0 bottom-0 top-16 z-10 flex justify-end bg-bar/70 p-4" onClick={(e) => { if (e.target === e.currentTarget) close(); }}>
@@ -69,7 +73,6 @@ export function Desk({ data, actions, hints }: { data: DeskData; actions: DeskAc
             <TestBill className="h-full w-[560px] max-w-full" actions={actions} bills={bills} onClose={close} onLanded={desk.landed} onView={(b) => desk.select(b.id)} />
           )}
           {drawer === "policy" && <PolicySheet portfolio={data.portfolio} onClose={close} />}
-          {drawer === "rvs" && <RealVsSimulatedSheet portfolio={data.portfolio} onClose={close} />}
         </div>
       )}
     </main>
@@ -78,7 +81,7 @@ export function Desk({ data, actions, hints }: { data: DeskData; actions: DeskAc
 
 /* ---------- Bill tabs: one row, scrolls sideways with a fade when it overflows ---------- */
 
-function BillTabs({ bills, selectedId, flashId, replaying, onSelect }: { bills: BillView[]; selectedId: string | null; flashId: string | null; replaying: boolean; onSelect(id: string): void }) {
+function BillTabs({ bills, selectedId, flashId, loading, onSelect }: { bills: BillView[]; selectedId: string | null; flashId: string | null; loading: boolean; onSelect(id: string): void }) {
   const ref = useRef<HTMLDivElement>(null);
   const [edges, setEdges] = useState({ left: false, right: false });
   const tabs = [...bills].sort((a, b) => ORDER[a.status] - ORDER[b.status]);
@@ -93,13 +96,15 @@ function BillTabs({ bills, selectedId, flashId, replaying, onSelect }: { bills: 
     ro.observe(el);
     el.addEventListener("scroll", sync, { passive: true });
     return () => { ro.disconnect(); el.removeEventListener("scroll", sync); };
-  }, [tabs.length, replaying]);
+  }, [tabs.length, loading]);
 
   // Keep the selected tab in view (new bills from Test a bill land off-screen).
   useEffect(() => {
     if (!selectedId) return;
     ref.current?.querySelector(`[data-id="${CSS.escape(selectedId)}"]`)?.scrollIntoView({ inline: "nearest", block: "nearest", behavior: "smooth" });
   }, [selectedId, bills.length]);
+
+  if (!loading && tabs.length === 0) return null;
 
   const mask = edges.left && edges.right
     ? "[mask-image:linear-gradient(to_right,transparent,black_48px,black_calc(100%-48px),transparent)]"
@@ -109,13 +114,13 @@ function BillTabs({ bills, selectedId, flashId, replaying, onSelect }: { bills: 
   return (
     <nav aria-label="Bills" className="shrink-0 border-b border-white/[0.08]">
       <div ref={ref} className={`flex items-center gap-2 overflow-x-auto px-6 py-3 [scrollbar-width:none] ${mask}`}>
-        {replaying && [0, 1, 2, 3].map((i) => (
+        {loading && [0, 1, 2, 3].map((i) => (
           <span key={i} className="flex h-10 w-48 shrink-0 animate-pulse items-center gap-2 rounded-full bg-card pl-2">
             <span className="size-6 rounded-full bg-muted/20" />
-            <span className={`${T.small} text-muted`}>Reading…</span>
+            <span className={`${T.small} text-muted`}>Loading…</span>
           </span>
         ))}
-        {!replaying && tabs.map((b) => {
+        {!loading && tabs.map((b) => {
           const on = b.id === selectedId;
           return (
             <button
@@ -145,6 +150,7 @@ function Story({ bill, desk }: { bill: BillView; desk: DeskState }) {
   const agent = bill.investigation !== null && (held || bill.status === "BLOCKED" || bill.investigation.draft_sent);
   const [details, setDetails] = useState<DetailsTab | null>(null);
   const properties = desk.data.portfolio?.properties ?? [];
+  const vendors = desk.data.portfolio?.vendors ?? [];
 
   const humanLabel = held ? "You decide" : bill.status === "REJECTED" || bill.resolved_by === "HUMAN" ? "A person decided" : "No human needed";
 
@@ -169,7 +175,7 @@ function Story({ bill, desk }: { bill: BillView; desk: DeskState }) {
         </Step>
 
         <Step n={2} label="Code decided" state="done" sub={evidenceTitle(bill)}>
-          <Evidence bill={bill} />
+          <Evidence bill={bill} vendors={vendors} />
           <DetailsLink onClick={() => setDetails("checks")}>{checksSummary(bill)}</DetailsLink>
         </Step>
 
@@ -192,7 +198,7 @@ function Story({ bill, desk }: { bill: BillView; desk: DeskState }) {
             </>
           ) : bill.status === "CLEARED" ? (
             <>
-              <PaymentLine bill={bill} />
+              <PaymentLine bill={bill} vendors={vendors} />
               <p className={`${T.small} text-muted`}>{bill.resolved_by === "HUMAN" ? "Resolved by a person. The log has the entry." : "Every check passed, so no one needed to touch it."}</p>
             </>
           ) : (
@@ -282,7 +288,7 @@ function ReadFields({ bill }: { bill: BillView }) {
 
 function StorySkeleton() {
   return (
-    <div className="flex flex-col gap-6 px-6 py-6" aria-busy="true" aria-label="Reading Saturday intake">
+    <div className="flex flex-col gap-6 px-6 py-6" aria-busy="true" aria-label="Loading bills">
       <div className="h-8 w-64 animate-pulse rounded-full bg-card" />
       <div className="h-12 w-[560px] max-w-full animate-pulse rounded-full bg-card" />
       <div className="grid grid-cols-[1fr_1.45fr_1.2fr_1fr] gap-4">

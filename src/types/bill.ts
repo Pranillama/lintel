@@ -28,7 +28,7 @@ export type VendorId = `V-${string}`;
 export type BillId = string;
 
 // ---------------------------------------------------------------------------
-// Portfolio (seeded, read-only at runtime)
+// Portfolio (added by an admin in Properties & vendors)
 // ---------------------------------------------------------------------------
 
 export interface Property {
@@ -330,9 +330,9 @@ export type ResolvedBy = "AUTO" | "HUMAN";
 
 export interface PaymentInstruction {
   rail: PaymentRail;
-  mode: "SIMULATED" | "LIVE_TESTNET";
+  mode: "LIVE_TESTNET";
   status: "SCHEDULED" | "SENT" | "FAILED";
-  /** Simulated reference or a real testnet tx hash. Never a fake hash. */
+  /** A real testnet tx hash. Never a fake hash. */
   reference: string | null;
   idempotency_key: string;
 }
@@ -536,9 +536,9 @@ export interface BillsResponse {
 export interface PortfolioResponse {
   properties: Property[];
   vendors: Vendor[];
+  accounts: VendorAccount[];
   policy_text: string[];
   seats_line: string;
-  real_vs_simulated: Array<{ component: string; status: "REAL" | "SIMULATED" | "SEEDED"; how_to_verify: string }>;
   flags: { crs_enabled: boolean; creao_enabled: boolean; x402_enabled: boolean; extraction_enabled: boolean };
 }
 
@@ -550,9 +550,4 @@ export interface AssignPropertyBody {
 /** POST /api/bills/:id/approve and /reject body. Returns BillView. */
 export interface HumanDecisionBody {
   note?: string;
-}
-/** POST /api/demo/replay returns the opening batch, in order. */
-export interface ReplayResponse {
-  bills: BillView[];
-  totals: Totals;
 }

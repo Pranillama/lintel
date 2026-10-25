@@ -3,8 +3,7 @@ import { ConvexError } from "convex/values";
 import { action } from "../_generated/server";
 import { api, internal } from "../_generated/api";
 import { normalizeForm } from "../../src/intake/normalizeForm";
-import { OPENING_BATCH } from "../../src/seed/demo-inputs";
-import type { BillFormInput, BillView, CrsResult, ExtractedBill, ProcessBillInput, UploadedDocument } from "../../src/types/bill";
+import type { BillView, CrsResult, ExtractedBill, ProcessBillInput, UploadedDocument } from "../../src/types/bill";
 
 function newBillId(now: Date): string {
   const yy = String(now.getUTCFullYear()).slice(2);
@@ -18,7 +17,6 @@ export const processBill = action({
   args: { input: v.string() },
   handler: async (ctx, args): Promise<BillView> => {
     const input = JSON.parse(args.input) as ProcessBillInput;
-    await ctx.runMutation(api.seed.seed, {});
     const now = new Date();
     const billId = newBillId(now);
     const createdAt = now.toISOString();
@@ -61,17 +59,11 @@ export const processBill = action({
       await ctx.runMutation(internal.crs.vendor.commitCrs, { billId, crs: JSON.stringify(crs) });
     }
     const decided = await ctx.runMutation(internal.engine.policy.commitPolicy, { billId, crs: JSON.stringify(crs) });
-    if (decided.status === "CLEARED" && decided.decision.rail) {
-      let mode: "SIMULATED" | "LIVE_TESTNET" = "SIMULATED";
-      let reference: string | null = null;
-      if (process.env.LINTEL_X402_ENABLED === "true" && vendor?.kind !== "ENROLLED_UTILITY") {
-        const settled: unknown = await ctx.runAction(internal.payments.settle.settle, { billId });
-        if (settled && typeof settled === "object" && "reference" in settled && typeof settled.reference === "string") {
-          mode = "LIVE_TESTNET";
-          reference = settled.reference;
-        }
+    if (decided.status === "CLEARED" && decided.decision.rail && process.env.LINTEL_X402_ENABLED === "true" && vendor?.kind !== "ENROLLED_UTILITY") {
+      const settled: unknown = await ctx.runAction(internal.payments.settle.settle, { billId });
+      if (settled && typeof settled === "object" && "reference" in settled && typeof settled.reference === "string") {
+        await ctx.runMutation(internal.payments.settle.commitPayment, { billId, rail: decided.decision.rail, reference: settled.reference });
       }
-      await ctx.runMutation(internal.payments.settle.commitPayment, { billId, rail: decided.decision.rail, mode, reference });
     }
     if (decided.status === "HELD" || decided.status === "BLOCKED") {
       const wait: number = await ctx.runMutation(internal.pipeline.investigate.markPending, { billId, ts: createdAt });
@@ -80,19 +72,5 @@ export const processBill = action({
     const view = await ctx.runQuery(api.bills.queries.getBill, { billId });
     if (!view) throw new ConvexError("Bill was not stored.");
     return view;
-  },
-});
-
-export const replayOpening = action({
-  args: {},
-  handler: async (ctx): Promise<{ bills: BillView[]; totals: { blocked: number; held: number; cleared: number } }> => {
-    await ctx.runMutation(internal.bills.reset.wipeLive, {});
-    const bills: BillView[] = [];
-    for (const row of OPENING_BATCH) {
-      const input: ProcessBillInput = { kind: "FEED", form: row.form satisfies BillFormInput, feed_label: "Saturday intake" };
-      bills.push(await ctx.runAction(api.pipeline.process.processBill, { input: JSON.stringify(input) }));
-    }
-    const listed = await ctx.runQuery(api.bills.queries.listBills, {});
-    return { bills, totals: listed.totals };
   },
 });

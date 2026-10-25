@@ -13,7 +13,7 @@ export const settle = internalAction({
 });
 
 export const commitPayment = internalMutation({
-  args: { billId: v.string(), rail: v.string(), mode: v.union(v.literal("SIMULATED"), v.literal("LIVE_TESTNET")), reference: v.union(v.string(), v.null()) },
+  args: { billId: v.string(), rail: v.string(), reference: v.string() },
   handler: async (ctx, args) => {
     const row = await billById(ctx, args.billId);
     if (!row) throw new Error(`Unknown bill ${args.billId}`);
@@ -21,7 +21,7 @@ export const commitPayment = internalMutation({
     const rail = args.rail as PaymentRail;
     const payment: PaymentInstruction = {
       rail,
-      mode: args.mode,
+      mode: "LIVE_TESTNET",
       status: "SCHEDULED",
       reference: args.reference,
       idempotency_key: bill.id,
@@ -33,7 +33,7 @@ export const commitPayment = internalMutation({
       actor: "PAYMENT_ROUTER",
       action: "ROUTE_PAYMENT",
       decision: "EXECUTE",
-      rationale: `${rail} ${args.mode}`,
+      rationale: `${rail} LIVE_TESTNET`,
       data: {},
     };
     await saveEvents(ctx, await appendEvents(previous.at(-1) ?? null, [draft]));
