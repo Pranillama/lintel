@@ -89,19 +89,24 @@ function SpikeEvidence({ bill }: { bill: BillView }) {
   const n = series.baseline.length;
   const labels = series.baseline.map((_, i) => (n - i === 1 ? "Last bill" : `${n - i} bills ago`)).concat("This bill");
   const h = 80;
+  // Chart geometry only: where "usual + threshold" sits on the bar scale. The rule itself is quoted from the check.
+  const holdAt = series.avg !== null && series.thresholdPct !== null ? Math.min(h, ((series.avg * (1 + series.thresholdPct / 100)) / max) * h) : null;
   return (
     <div className="flex flex-col gap-4">
-      <div className="flex items-end gap-4" role="list" aria-label="Past bills and this bill">
+      <div className="relative flex items-end gap-4" role="list" aria-label="Past bills and this bill">
+        {holdAt !== null && (
+          <div aria-hidden className="pointer-events-none absolute inset-x-0 border-t-[1.5px] border-dashed border-bad/80" style={{ bottom: 28 + holdAt }} />
+        )}
         {values.map((v, i) => {
           const current = i === values.length - 1;
           return (
             <div key={i} role="listitem" className="flex min-w-0 flex-1 flex-col items-center gap-2">
               <div className="flex w-full flex-col items-center justify-end gap-2" style={{ height: h + 28 }}>
-                <span className={`${T.small} tabular-nums whitespace-nowrap ${current ? "font-semibold" : "text-muted"}`}>
+                <span className={`${T.small} relative z-[1] rounded bg-card px-1 tabular-nums whitespace-nowrap ${current ? "font-semibold" : "text-muted"}`}>
                   {fmt(v)}{unit && ` ${unit}`}
                 </span>
                 <div
-                  className={`w-full max-w-20 rounded-[10px] ${current ? "bg-paper" : "bg-muted/30"}`}
+                  className={`w-full max-w-20 rounded-[10px] ${current ? (check(bill, "SPIKE")?.outcome === "HALT" ? "bg-lime" : "bg-paper") : "bg-muted/30"}`}
                   style={{ height: Math.max((v / max) * h, 8) }}
                 />
               </div>
@@ -113,7 +118,7 @@ function SpikeEvidence({ bill }: { bill: BillView }) {
       <div className={`flex flex-wrap items-center gap-x-4 gap-y-2 border-t border-white/[0.08] pt-4 ${T.small} text-muted`}>
         {series.avg !== null && <span>Usual <span className="text-paper tabular-nums">{fmt(series.avg)}{unit && ` ${unit}`}</span></span>}
         {series.variancePct !== null && <span>This bill <span className="text-paper tabular-nums">{formatPct(series.variancePct)}</span></span>}
-        {series.thresholdPct !== null && <span>Rule: hold above +{series.thresholdPct}%</span>}
+        {series.thresholdPct !== null && <span className="flex items-center gap-2"><span aria-hidden className="w-5 border-t-[1.5px] border-dashed border-bad" />Hold above +{series.thresholdPct}% over usual</span>}
         <span className="ml-auto"><Tag>Paid history</Tag></span>
       </div>
     </div>
