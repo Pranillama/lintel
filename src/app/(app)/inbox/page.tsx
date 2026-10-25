@@ -5,5 +5,5 @@ const one = (v: string | string[] | undefined) => (Array.isArray(v) ? v[0] : v);
 
 export default async function Page({ searchParams }: { searchParams: Promise<Search> }) {
   const sp = await searchParams;
-  return <InboxScreen status={one(sp.status)} upload={one(sp.upload) === "1"} />;
+  return <InboxScreen key={one(sp.status) ?? "all"} status={one(sp.status)} upload={one(sp.upload) === "1"} />;
 }

@@ -53,7 +53,7 @@ export function AppShell({ children }: { children: ReactNode }) {
               const active = on(n.match);
               return (
                 <Link key={n.href} href={n.href} aria-current={active ? "page" : undefined}
-                  className={`flex h-10 items-center gap-2 rounded-full px-4 text-[14px] leading-5 transition-colors ${FOCUS} ${active ? "bg-paper font-semibold text-bar" : "text-muted hover:text-paper"}`}>
+                  className={`flex h-10 items-center gap-2 whitespace-nowrap rounded-full px-4 text-[14px] leading-5 transition-colors ${FOCUS} ${active ? "bg-paper font-semibold text-bar" : "text-muted hover:text-paper"}`}>
                   {n.label}
                   {n.href === "/inbox" && t && t.count.held > 0 && (
                     <span className="inline-flex h-5 min-w-5 items-center justify-center rounded-full bg-lime px-1.5 font-mono text-[12px] font-bold leading-4 text-bar" aria-label={`${t.count.held} need you`}>{t.count.held}</span>
