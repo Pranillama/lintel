@@ -49,11 +49,11 @@ export const REAL_VS_SIMULATED: Array<{
   status: "REAL" | "SIMULATED" | "SEEDED";
   how_to_verify: string;
 }> = [
-  { component: "Guardrail engine (duplicates, spike math, policy)", status: "REAL", how_to_verify: "Type any bill in Judge Live Test; the rationale prints the arithmetic. tests/ cover every rule." },
+  { component: "Guardrail engine (duplicates, spike math, policy)", status: "REAL", how_to_verify: "Open Test a bill and type any bill; the rationale prints the arithmetic. tests/ cover every rule." },
   { component: "Property and vendor matching (account, alias, address)", status: "REAL", how_to_verify: "Type 2450 Market St or 1880 Lombard #B and watch the match method change." },
   { component: "Human alias learning", status: "REAL", how_to_verify: "Assign a held address once; the next bill with that string matches by HUMAN_ALIAS." },
   { component: "Bill reading from PDF/photo (intake agent)", status: "REAL", how_to_verify: "Drop a PDF; fields arrive with confidence and source snippets. Timeout holds the bill." },
-  { component: "Exception investigator agent (CREAO, Claude fallback)", status: "REAL", how_to_verify: "Open any held bill; the brief shows provider and CREAO run link." },
+  { component: "Exception investigator agent (CREAO, Claude fallback)", status: "REAL", how_to_verify: "Open any held bill; the brief shows the provider and, for CREAO, the run ID." },
   { component: "Append-only, hash-chained audit log in Convex auditEvents", status: "REAL", how_to_verify: "Audit drawer shows each event hash; chain status is checked on every load." },
   { component: "Opening batch of 4 bills", status: "REAL", how_to_verify: "Structured bill records replayed through the same engine on every load; no stored verdicts." },
   { component: "Portfolio: 5 properties standing in for a 250-property book, 3 months of bill history", status: "SEEDED", how_to_verify: "src/seed/portfolio.ts" },

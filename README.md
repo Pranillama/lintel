@@ -27,7 +27,7 @@ Lintel is an autonomous accounts payable desk for a multi-property real estate p
 
 ## What it does
 
-End-to-end AP desk. The 4-bill opening replay lands Blocked `$680.00` · Held `$6,100.00` · Cleared `$2,290.40`. A person assigns `1880 Lombard #B` once; the next bill with that string matches by `HUMAN_ALIAS`. The Judge Live Test drawer runs any typed bill through the same `processBill` path.
+End-to-end AP desk. The 4-bill opening replay lands Blocked `$680.00` · Held `$6,100.00` · Cleared `$2,290.40`. A person assigns `1880 Lombard #B` once; the next bill with that string matches by `HUMAN_ALIAS`. The Test a bill drawer runs any typed bill through the same `processBill` path.
 
 ## How it decides
 
@@ -45,11 +45,11 @@ Copied from `REAL_VS_SIMULATED` in `src/seed/policy.ts`.
 
 | Component | Status | How to verify |
 | --- | --- | --- |
-| Guardrail engine (duplicates, spike math, policy) | REAL | Type any bill in Judge Live Test; the rationale prints the arithmetic. tests/ cover every rule. |
+| Guardrail engine (duplicates, spike math, policy) | REAL | Open Test a bill and type any bill; the rationale prints the arithmetic. tests/ cover every rule. |
 | Property and vendor matching (account, alias, address) | REAL | Type 2450 Market St or 1880 Lombard #B and watch the match method change. |
 | Human alias learning | REAL | Assign a held address once; the next bill with that string matches by HUMAN_ALIAS. |
 | Bill reading from PDF/photo (intake agent) | REAL | Drop a PDF; fields arrive with confidence and source snippets. Timeout holds the bill. |
-| Exception investigator agent (CREAO, Claude fallback) | REAL | Open any held bill; the brief shows provider and CREAO run link. |
+| Exception investigator agent (CREAO, Claude fallback) | REAL | Open any held bill; the brief shows the provider and, for CREAO, the run ID. |
 | Append-only, hash-chained audit log in Convex auditEvents | REAL | Audit drawer shows each event hash; chain status is checked on every load. |
 | Opening batch of 4 bills | REAL | Structured bill records replayed through the same engine on every load; no stored verdicts. |
 | Portfolio: 5 properties standing in for a 250-property book, 3 months of bill history | SEEDED | src/seed/portfolio.ts |

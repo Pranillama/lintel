@@ -48,6 +48,11 @@ export function InvestigatorPanel({ bill, actions }: { bill: BillView; actions: 
             {brief.provider}
           </span>
         )}
+        {brief.provider === "CREAO" && brief.creao_run_id && (
+          <span title={`CREAO run ${brief.creao_run_id}`} className="label-mono rounded-md bg-raised px-2 py-0.5 text-[10.5px] text-muted">
+            RUN {brief.creao_run_id.slice(0, 8)}
+          </span>
+        )}
         <span className="text-[12.5px] text-muted">{working ? "Investigating…" : STATUS_LABEL[brief.status]}</span>
         {brief.creao_share_url && (
           <a href={brief.creao_share_url} target="_blank" rel="noopener noreferrer" className="focus-ring ml-auto rounded text-[12.5px] text-muted underline-offset-2 hover:underline">
