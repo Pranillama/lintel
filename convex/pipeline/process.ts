@@ -74,8 +74,8 @@ export const processBill = action({
       await ctx.runMutation(internal.payments.settle.commitPayment, { billId, rail: decided.decision.rail, mode, reference });
     }
     if (decided.status === "HELD" || decided.status === "BLOCKED") {
-      await ctx.runMutation(internal.pipeline.investigate.markPending, { billId, ts: createdAt });
-      await ctx.scheduler.runAfter(0, internal.pipeline.investigate.run, { billId });
+      const wait: number = await ctx.runMutation(internal.pipeline.investigate.markPending, { billId, ts: createdAt });
+      await ctx.scheduler.runAfter(wait, internal.pipeline.investigate.run, { billId });
     }
     const view = await ctx.runQuery(api.bills.queries.getBill, { billId });
     if (!view) throw new ConvexError("Bill was not stored.");

@@ -388,6 +388,51 @@ describe("investigate", () => {
     });
   });
 
+  it("keeps a CREAO brief whose draft leaves out suggested_property_id", async () => {
+    enableCreao();
+    const { suggested_property_id: _omitted, ...draft } = modelBrief.draft;
+    fetchMock
+      .mockResolvedValueOnce(jsonResponse({ id: "run-nokey", status: "pending" }))
+      .mockResolvedValueOnce(jsonResponse({ status: "completed", result: { text: JSON.stringify({ ...modelBrief, draft }) } }));
+
+    const brief = await investigate(contextFor(["USAGE_SPIKE"]));
+
+    expect(brief).toMatchObject({ status: "DONE", provider: "CREAO", creao_run_id: "run-nokey", draft: { suggested_property_id: null } });
+  });
+
+  it("logs what CREAO returned when the answer is not a brief", async () => {
+    enableCreao();
+    claudeReturns();
+    const errors = vi.spyOn(console, "error").mockImplementation(() => {});
+    fetchMock
+      .mockResolvedValueOnce(jsonResponse({ id: "run-echo", status: "pending" }))
+      .mockResolvedValueOnce(jsonResponse({ status: "completed", result: { text: '{"prompt":"...","top_reason":"USAGE_SPIKE"}' } }));
+
+    const brief = await investigate(contextFor(["USAGE_SPIKE"]));
+
+    expect(brief.provider).toBe("CLAUDE");
+    const logged = errors.mock.calls.find((call) => String(call[0]).includes("CREAO failed"));
+    const message = logged?.[1] instanceof Error ? logged[1].message : "";
+    expect(message).toContain("run-echo");
+    expect(message).toContain("keys: prompt, top_reason");
+    expect(message).toContain('"top_reason":"USAGE_SPIKE"');
+  });
+
+  it("falls back to Claude when CREAO asks to wait past the run budget, and logs the wait", async () => {
+    enableCreao();
+    claudeReturns();
+    const errors = vi.spyOn(console, "error").mockImplementation(() => {});
+    fetchMock.mockResolvedValueOnce(
+      new Response(JSON.stringify({ error: "RATE_LIMITED" }), { status: 429, headers: { "Retry-After": "600" } }),
+    );
+
+    const brief = await investigate(contextFor(["USAGE_SPIKE"]));
+
+    expect(brief.provider).toBe("CLAUDE");
+    const logged = errors.mock.calls.find((call) => String(call[0]).includes("CREAO failed"));
+    expect(logged?.[1] instanceof Error ? logged[1].message : "").toBe("CREAO request failed (429, retry after 600s)");
+  });
+
   it("waits out a CREAO 429 and still returns the CREAO brief", async () => {
     enableCreao();
     fetchMock
