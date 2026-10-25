@@ -16,8 +16,10 @@ import { AssignControls, Evidence, evidenceTitle, PaymentLine } from "../desk/Ev
 import { sourceText } from "../desk/Pieces";
 import { storyKind, storyOf } from "../desk/story";
 import { CARD, ErrorLine, Icon, Money, shortDate, T } from "../desk/ui";
+import { useBillDocument } from "../desk/useConvexDesk";
 import { useApp } from "./AppProvider";
 import { Empty, Loading, Screen, ScreenHeader, Stamp, WhoChip } from "./kit";
+import { OriginalModal, OriginalTitle } from "./OriginalBill";
 import { actorOf, confidenceWord, eventNote, eventTitle, type ActorKind } from "./plain";
 import { ReceiptTicket } from "./ReceiptTicket";
 
@@ -34,15 +36,19 @@ type Tab = "checked" | "says" | "ai" | "history";
 function BillDetail({ bill }: { bill: BillView }) {
   const { data, actions } = useApp();
   const [tab, setTab] = useState<Tab>("checked");
+  const doc = useBillDocument(bill.id) ?? null;
+  const [viewing, setViewing] = useState(false);
 
   const next = data.bills.filter((b) => b.status === "HELD" && b.id !== bill.id).at(-1);
   const portfolio = data.portfolio;
+  const vendor = bill.vendor_name ?? "Unknown vendor";
 
   return (
     <Screen wide>
+      {doc && viewing && <OriginalModal doc={doc} vendor={vendor} onClose={() => setViewing(false)} />}
       <ScreenHeader
         back={{ href: "/inbox", label: "Inbox" }}
-        title={<span className="flex flex-wrap items-center gap-3"><Stamp status={bill.status} />{bill.vendor_name ?? "Unknown vendor"}<Money value={bill.amount} struck={bill.status === "BLOCKED"} className="text-muted" /></span>}
+        title={<span className="flex flex-wrap items-center gap-3"><Stamp status={bill.status} /><OriginalTitle name={vendor} doc={doc} onOpen={() => setViewing(true)} /><Money value={bill.amount} struck={bill.status === "BLOCKED"} className="text-muted" /></span>}
         sub={[bill.property_name ?? "No property yet", bill.extracted.invoice_number.value && `Invoice ${bill.extracted.invoice_number.value}`, `Due ${shortDate(bill.extracted.due_date.value)}`, sourceText(bill)].filter(Boolean).join(" · ")}
         actions={next && (
           <Link href={`/bills/${encodeURIComponent(next.id)}`} className={`${T.small} flex items-center gap-2 rounded-full px-3 py-2 text-muted outline-none hover:text-paper focus-visible:ring-2 focus-visible:ring-paper`}>
@@ -77,7 +83,7 @@ function BillDetail({ bill }: { bill: BillView }) {
                 <AllChecks bill={bill} />
               </>
             )}
-            {tab === "says" && <BillSays bill={bill} />}
+            {tab === "says" && <BillSays bill={bill} onViewOriginal={doc ? () => setViewing(true) : undefined} />}
             {tab === "ai" && (
               <>
                 <CardTitle who="AI" title="What the AI prepared" sub={<ProviderTags bill={bill} />} />
@@ -181,7 +187,7 @@ const FIELDS: Array<[string, (b: BillView) => { value: string | number | null; c
 
 const WORD_STYLE = { Sure: "bg-ok/15 text-ok", "Double-check": "bg-lime/15 text-lime", Unsure: "bg-bad/15 text-bad" } as const;
 
-function BillSays({ bill }: { bill: BillView }) {
+function BillSays({ bill, onViewOriginal }: { bill: BillView; onViewOriginal?: () => void }) {
   const doc = bill.source === "DOCUMENT";
   return (
     <>
@@ -210,6 +216,11 @@ function BillSays({ bill }: { bill: BillView }) {
       </dl>
       {doc && bill.extracted.extraction_error && <ErrorLine>{bill.extracted.extraction_error}</ErrorLine>}
       {doc && <p className={`${T.small} text-muted`}>Unsure fields stop the bill for a person. Lintel never pays on a partial read.</p>}
+      {onViewOriginal && (
+        <button type="button" onClick={onViewOriginal} aria-haspopup="dialog" className={`${T.small} flex w-fit cursor-pointer items-center gap-1.5 rounded-full font-semibold text-paper underline-offset-4 outline-none hover:underline focus-visible:ring-2 focus-visible:ring-paper`}>
+          <Icon name="doc" className="size-3.5" /> Compare with the original bill
+        </button>
+      )}
     </>
   );
 }

@@ -1,4 +1,5 @@
 import { v } from "convex/values";
+import type { Id } from "../_generated/dataModel";
 import { query } from "../_generated/server";
 import { verifyChain } from "../../src/audit/chain";
 import { computeTotals } from "../../src/engine/totals";
@@ -31,6 +32,23 @@ export const getBill = query({
     const row = await ctx.db.query("bills").withIndex("by_billId", (q) => q.eq("billId", args.billId)).unique();
     if (!row) return null;
     return await viewOf(ctx, row.record);
+  },
+});
+
+/** The original uploaded file for a bill, or null for typed and feed bills. The storage id lives on the INTAKE audit row. */
+export const getBillDocument = query({
+  args: { billId: v.string() },
+  handler: async (ctx, args) => {
+    const row = await ctx.db.query("bills").withIndex("by_billId", (q) => q.eq("billId", args.billId)).unique();
+    if (!row) return null;
+    const intake = (await eventsFor(ctx, args.billId)).find((e) => e.action === "INTAKE");
+    const storageId = intake?.data.storage_id;
+    if (typeof storageId !== "string") return null;
+    const id = storageId as Id<"_storage">;
+    const url = await ctx.storage.getUrl(id);
+    if (!url) return null;
+    const file = await ctx.db.system.get("_storage", id);
+    return { url, media_type: file?.contentType ?? null, filename: readBill(row.record).source_label };
   },
 });
 
