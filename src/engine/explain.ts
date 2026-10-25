@@ -1,5 +1,6 @@
 import { POLICY } from "@/seed/policy";
-import type { CheckResult, Decision, ExtractedBill, LedgerSnapshot, MatchResult, ReasonCode } from "@/types/bill";
+import { parseAddress } from "@/shared/normalize";
+import type { CheckResult, Decision, ExtractedBill, LedgerSnapshot, MatchResult, Property, ReasonCode } from "@/types/bill";
 import { formatPct, formatQty, formatUsd } from "./format";
 
 export function explain(input: {
@@ -47,11 +48,23 @@ export function explain(input: {
     return "CRS flagged this vendor. Blocked: a flagged contractor is never paid.";
   }
 
-  if (reasons.includes("NEEDS_PROPERTY_MATCH")) {
-    const address = extracted.service_address.value ?? "";
-    const confidence = match.confidence.toFixed(2);
-    const floor = POLICY.MIN_MATCH_CONFIDENCE.toFixed(2);
-    return `"${address}" matches ${property?.name ?? "no property"} on street, but unit #B is not on the property. Confidence capped at ${confidence} (needs ${floor}). Held for a person to assign.`;
+  if (reasons.some((r) => INTAKE_REASONS.includes(r))) {
+    const extraction = checks.find((c) => c.id === "EXTRACTION");
+    const bits: string[] = [];
+    if (reasons.includes("EXTRACTION_FAILED")) bits.push("The bill could not be read");
+    if (reasons.includes("MISSING_FIELD")) bits.push(`Missing ${fieldWords(extraction?.data.missing)}`);
+    if (reasons.includes("LOW_CONFIDENCE")) {
+      bits.push(`Read below ${POLICY.MIN_FIELD_CONFIDENCE.toFixed(2)} confidence: ${fieldWords(extraction?.data.low)}`);
+    }
+    if (reasons.includes("UNKNOWN_VENDOR")) bits.push(`"${extracted.vendor_name.value ?? "Unnamed vendor"}" is not a known vendor`);
+    if (reasons.includes("VENDOR_ACCOUNT_CONFLICT")) {
+      bits.push(`Account ${extracted.account_number.value ?? ""} belongs to a different vendor than "${extracted.vendor_name.value ?? ""}"`);
+    }
+    if (reasons.includes("NEEDS_PROPERTY_MATCH")) bits.push(propertyClause(extracted, match, property));
+    const partialRead = reasons.some((r) => r === "EXTRACTION_FAILED" || r === "MISSING_FIELD" || r === "LOW_CONFIDENCE");
+    const onlyProperty = reasons.every((r) => r === "NEEDS_PROPERTY_MATCH");
+    const tail = onlyProperty ? "Held for a person to assign." : `${partialRead ? "Not decided on a partial read. " : ""}${heldFor(required_approver)}`;
+    return `${bits.join(". ")}. ${tail}`;
   }
 
   if (reasons.includes("USAGE_SPIKE") || reasons.includes("AMOUNT_SPIKE") || reasons.includes("NO_BASELINE")) {
@@ -108,8 +121,44 @@ export function explain(input: {
     return `${formatUsd(amount)} is at or under the ${limit === null ? "auto-pay" : formatUsd(limit)} auto-pay limit. Not a duplicate. Cleared to ACH (simulated).`;
   }
 
+  if (reasons.includes("UTILITY_NOT_ACCOUNT_MATCHED")) {
+    return `${vendor?.name ?? "This utility"} is enrolled by account, but no enrolled account matched; ${property?.name ?? "the property"} was matched by ${match.method.toLowerCase().replace(/_/g, " ")}. ${heldFor(required_approver)}`;
+  }
+
   if (reasons.length === 0) return "Cleared.";
   return `${reasons.join(", ")}. ${heldFor(required_approver)}`;
+}
+
+/** Reasons a person has to look at the read or the match itself (master-spec §5.2 priority 2). */
+const INTAKE_REASONS: ReasonCode[] = [
+  "EXTRACTION_FAILED",
+  "MISSING_FIELD",
+  "LOW_CONFIDENCE",
+  "UNKNOWN_VENDOR",
+  "VENDOR_ACCOUNT_CONFLICT",
+  "NEEDS_PROPERTY_MATCH",
+];
+
+function propertyClause(extracted: ExtractedBill, match: MatchResult, property: Property | undefined): string {
+  const address = extracted.service_address.value;
+  if (!address) return "No account or service address matches a property";
+  if (!property) return `"${address}" does not match any property`;
+  const confidence = match.confidence.toFixed(2);
+  const floor = POLICY.MIN_MATCH_CONFIDENCE.toFixed(2);
+  const unit = parseAddress(address).unit;
+  if (unit && property.units.length > 0 && !property.units.some((u) => u.toUpperCase() === unit.toUpperCase())) {
+    return `"${address}" matches ${property.name} on street, but unit #${unit} is not on the property. Confidence capped at ${confidence} (needs ${floor})`;
+  }
+  const [top, next] = match.candidates;
+  if (top && next && top.score - next.score <= POLICY.AMBIGUOUS_MATCH_GAP) {
+    return `"${address}" could be ${top.property_name} or ${next.property_name}. Confidence ${confidence} (needs ${floor})`;
+  }
+  return `"${address}" best matches ${property.name} at ${confidence} (needs ${floor})`;
+}
+
+function fieldWords(value: unknown): string {
+  const names = Array.isArray(value) ? value.filter((v): v is string => typeof v === "string") : [];
+  return names.map((n) => n.replace(/_/g, " ").replace("total amount", "total")).join(", ") || "critical fields";
 }
 
 function heldFor(role: Decision["required_approver"]): string {
