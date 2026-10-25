@@ -15,9 +15,9 @@ function source(rel: string): string {
 }
 
 describe("AI boundary", () => {
-  it("keeps the engine and matcher free of models, Convex, and IO", () => {
+  it("keeps the engine, matcher, and voice facts free of models, Convex, and IO", () => {
     const offenders: string[] = [];
-    for (const rel of [...filesUnder("src/engine"), ...filesUnder("src/match")]) {
+    for (const rel of [...filesUnder("src/engine"), ...filesUnder("src/match"), ...filesUnder("src/voice")]) {
       if (!rel.endsWith(".ts")) continue;
       const text = source(rel);
       if (
