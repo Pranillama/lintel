@@ -33,7 +33,7 @@ import type {
   ProcessBillInput,
   PropertyId,
 } from "@/types/bill";
-import type { DeskActions, DeskData } from "../desk";
+import type { DeskActions, DeskData } from "../desk/contract";
 
 type Draft = Omit<AuditEvent, "id" | "seq" | "prev_hash" | "hash">;
 

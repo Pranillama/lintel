@@ -1,109 +1,64 @@
 # UI Context
 
-Owner: **Piyush**. One page at `/`, no other routes for the demo. It opens on the **receipt printer** (`ReceiptPrinter`): scrolling feeds the live AP tab out of a 3D thermal printer, printed from the same `listBills` data. The end of the tab offers "Open the AP desk ↓", and the **AP Command Center** sits directly below as a full-screen section (`#desk`). Pressing `J` anywhere scrolls to the desk and opens Test a bill; a skip link jumps straight to the desk. For the video's first frame (master-spec §7), record either the printer opening or the desk section. Judges stand at a shared, loud table for two minutes: everything that matters must be readable from a meter away without clicking.
+Owner: **Piyush**. One page at `/`, no other routes for the demo. It opens on the **receipt printer** (`ReceiptPrinter`): scrolling feeds the live AP tab out of a 3D thermal printer, printed from the same `listBills` data. The end of the tab offers "Open the AP desk ↓", and the AP desk sits directly below as a full-screen section (`#desk`). Pressing `J` anywhere scrolls to the desk and opens Test a bill; a skip link and the `?bill=` / `?panel=` hints jump straight to the desk. Judges stand at a shared, loud table for two minutes: everything that matters must be readable from a meter away without clicking. Demo screen is 1440x900; it must not break at 1280x800. Below 1280 the four cards go two by two, and below 768 they stack.
 
-Data comes only from Convex (`listBills`, `getPortfolio`, `processBill`, `humanResume`, `replayOpening`). The UI never computes a status, a total, a percentage, or a why-sentence; it renders what `BillView` and `Totals` say. Until those functions are live, build against mock `BillView` objects in `src/components/__mocks__/` (clearly mock, never imported by `page.tsx` in the final build). The page is a client component under `ConvexProvider`.
+Data comes only from Convex (`listBills`, `getPortfolio`, `processBill`, `humanResume`, `replayOpening`) through `useConvexDesk`. The UI never computes a status, a total, a percentage, or a why-sentence; it renders what `BillView` and `Totals` say and picks which engine number to quote. Which human controls exist comes from `humanRefusal` (`src/engine/human.ts`), never from the UI.
 
 ---
 
-## 1. Layout (desktop 1440×900 is the demo screen; must not break at 1280×800)
+## 1. Layout: one bill told as a four-step story
 
 ```
-┌──────────────────────────────────────────────────────────────────────────────────────────┐
-│ Lintel   AI reads · CODE decides · HUMAN owns          [Policy] [Real vs Simulated] [Judge Live Test] │
-│ Fills 2 full-time property AP and utility-audit seats on a 250-property portfolio.  250-property book · 5 loaded │
-├──────────────────────────────────────────────────────────────────────────────────────────┤
-│   BLOCKED $680.00          HELD $6,100.00          CLEARED $2,290.40        chain ✓ intact   │
-├───────────────────────────────────────────────┬──────────────────────────────────────────┤
-│ Saturday intake · 4 bills          [Replay]   │  DETAIL (selected bill)                   │
-│ ─────────────────────────────────────────────  │  Vendor · Property · $amount · [STATUS]  │
-│ PG&E · Bayview Commons     $2,290.40 CLEARED  │  Why: one sentence, numbers in it          │
-│   Simulated portal                            │  Guardrails: 8 rows PASS/HALT/BLOCK/SKIP   │
-│ Recology · Shattuck        $̶6̶8̶0̶.̶0̶0̶ BLOCKED  │  Match: method · confidence · candidates   │
-│   Exact duplicate of RW-99201                 │  Usage bars (spike bills)                  │
-│ EBMUD · Shattuck           $5,680.00 HELD     │  Investigator brief + draft [Send]         │
-│   +281% usage · rate flat                     │  Actions: [Assign] [Approve] [Reject]      │
-│ Bayline · Lombard #B       $420.00   HELD     │  Audit timeline (actor chips, hashes)      │
-│   Unit not on property                        │                                            │
-│ ── Live ──                                    │                                            │
-│ (judge / injector bills appear here, newest first)                                        │
-└───────────────────────────────────────────────┴──────────────────────────────────────────┘
+┌──────────────────────────────────────────────────────────────────────────────────────┐
+│ Lintel   ● Needs you $6,100.00  ✕ Blocked $680.00  ✓ Cleared $2,290.40  ✓ Chain intact   How it works ▾  [+ Test a bill J] │
+├──────────────────────────────────────────────────────────────────────────────────────┤
+│ (! Bayline $420) (! EBMUD $5,680) (✕ Recology $680) (✓ PG&E $2,290.40)   ← bill tabs, scroll sideways with a fade │
+├──────────────────────────────────────────────────────────────────────────────────────┤
+│ [! Needs you] EBMUD                                                        $5,680.00 │
+│ Usage is +281.0% over its usual            Shattuck Student Living · Invoice … · Due … │
+│ ┌ 1 Read in ─┐ ┌ 2 Code decided ──────┐ ┌ 3 Agent drafted ──┐ ┌ 4 You decide ─────┐ │
+│ │ fields     │ │ ONE evidence block   │ │ CREAO · RUN id    │ │ next step         │ │
+│ │ (+ conf.)  │ │ chosen by verdict    │ │ summary, draft,   │ │ [Approve as …]    │ │
+│ │            │ │ 8 checks · 1 failed ›│ │ [Send] Read draft │ │ History · 15 ›    │ │
+│ └────────────┘ └──────────────────────┘ └───────────────────┘ └───────────────────┘ │
+└──────────────────────────────────────────────────────────────────────────────────────┘
 ```
 
-- Left column ~44%, detail ~56%. Rows are dense (one line + one subline), no cards with shadows.
-- The detail pane is always visible; selecting a row swaps it. No modal for bill details, no route change.
-- Drawers (Judge Live Test, Policy, Real vs Simulated) slide over the detail pane from the right, never over the blotter or totals.
+- **Top bar:** brand (tagline `AI reads · Code decides · Human owns` on wide screens), the three totals, the audit chain indicator, a quiet `How it works` menu (Policy, Real vs simulated, Replay Saturday intake), and `Test a bill` (shortcut `J`).
+- **Bill tabs:** needs-you first, then blocked, cleared, rejected. One row; it scrolls sideways with an edge fade and keeps the selected tab in view.
+- **Story header:** status chip, vendor, amount, then the verdict in 40px plus a quiet line: property · invoice · due · source.
+- **Card 1, Read in / AI read:** the fields as read. Uploaded documents show a per-field confidence; anything under 0.85 is red.
+- **Card 2, Code decided:** one evidence block chosen by verdict. Spike: usage bars vs the last 3 bills. Duplicate: already-paid vs this bill side by side. Needs a property: the printed address with the unit marked plus the best guess and its score. Vendor: vendor file, CRS result, signals, auto-pay limit. Line sum: lines vs printed total. Cleared: why it cleared. Learned alias: `address → property`, taught once.
+- **Card 3, Agent drafted:** provider chip and, for CREAO, a quiet `RUN <8 chars>` chip (full id in the tooltip, no link). While running: a skeleton with elapsed seconds. Done: a 3-line summary, the draft subject, `Send` while the bill is HELD or BLOCKED, and `Read draft`. Otherwise it shows the `humanRefusal` text. Cleared bills: "No follow-up needed."
+- **Card 4, You decide:** HELD only. Lime ring, the next-step line, `Approve as {approver}` (the one lime button), `Reject`, an optional note. A bill that needs a property gets `Assign to {best guess}` plus `Another property…` instead of Approve. Cleared bills show the payment rail with a `SIMULATED` tag. Blocked bills say why nothing will be paid.
+- **Extra information opens in a modal, never by expanding a card.** One `Modal` (native `<dialog>`: focus trap, `Esc` and a backdrop click close it, focus returns to the opener).
+  - **Details modal:** the links at the foot of cards 2 and 4 open it on the Checks or History tab, with the hash-chain status in the header. Checks: the engine's sentence, then every check with an icon + word chip (Pass, Hold, Block, Skip) and a one-line detail. History: time, actor (AI / CODE / HUMAN / CRS), event, rationale, hash (actor and hash hide below 640px).
+  - **Draft modal:** `Read draft` (or `Read full brief` when there is no draft) shows what the agent found, its findings, and the full draft, with `Send` pinned in the footer under the same rules as the card.
+- **Overlays** (Test a bill, Policy, Real vs simulated) slide in from the right over the story; `Esc` or the scrim closes them.
 
-## 2. Visual language — Bento Lime (Figma: "Lintel · Final wireframe (Bento Lime)")
+## 2. Visual system
 
-The §1 sketch shows the information order; the built layout is the Bento Lime wireframe: a header with pill tabs (All bills · Needs you · Blocked · Cleared · Live, display filters only), a hero row (intake title, "Needs you" total, blocked/cleared meters, audit chain line), then a 400px bill column beside a 2×2 bento detail area. Drawers cover only the detail area.
+- Tokens live in `src/app/globals.css`: base `bar #0a0a0a`, one surface `card #191919`, `paper #f2f1ec`, `muted #8c8c86`, `lime #c8f25a`, `ok #3ccf91`, `bad #ff7a70`.
+- **Lime means "needs you"** and the single primary action, nothing else. Green means cleared or passed; red means blocked, failed, or an error. Status is never color alone: chips are a tinted background + icon + word.
+- Type sizes are 12 / 14 / 16 / 24 / 40, in weights 400 / 600. Poppins for text, IBM Plex Mono for labels, ids, and hashes. Content text is at least 14px. Radii are 16 (cards), 10 (inputs, inner blocks), and full (chips, buttons). Spacing is on a 4px grid, with one card style and no card inside a card.
+- Money is `$1,234.56` in tabular figures; blocked amounts get one strike-through.
 
-- Dark page (`bar #0a0a0a`, cards `#191919`, raised `#262626`), 30px card radius, 14px gaps. Tokens live in `src/app/globals.css`.
-- **Exactly three light colors:** paper `#f2f1ec`, muted `#8c8c86`, lime `#c8f25a`. **Lime means one thing: "needs you"** (HELD chip, held ring, HALT check, the held total, the spike bar on a held bill). The Test-a-bill drawer is the one lime card that is not a status.
-- Status chips: `HELD` → "Needs you" (lime fill), `CLEARED` → paper outline, `BLOCKED` → muted, `REJECTED` → muted outline. Check outcomes: PASS raised ✓, HALT lime !, BLOCK paper ✕, SKIP muted –.
-- Actor chips keep the legend `AI reads · CODE decides · HUMAN owns`, distinguished by shape instead of hue: `AI` outline, `CODE` raised, `HUMAN` paper fill, `CRS` dashed.
-- Numbers: tabular figures, `$1,234.56`. BLOCKED amounts get one strike-through.
-- Type: Poppins for text, IBM Plex Mono for labels, invoice/account numbers and hashes (loaded with `next/font` in `layout.tsx`).
-- The header button reads "＋ Test a bill" (shortcut `J`); the drawer behaves exactly as §5 describes.
-- Badges: `SIMULATED` small outline badge next to any rail; `SEEDED` where seed data is shown (usage baselines).
-- Pixel standard: aligned baselines in rows, consistent 8px spacing grid, no layout shift when a brief arrives (reserve its space with a skeleton), no text overflow at 1280px.
+## 3. Opening and live updates
 
-## 3. The five-second opening (the video's first frame)
+1. On first load, call `replayOpening`. While it runs: totals read $0.00, the tabs show `Reading…`, and the story is a skeleton.
+2. Select the first HELD spike bill (EBMUD), else the first HELD bill.
+3. Subscribe to `listBills`; never poll. Keep the selection by id. A brief moving from RUNNING to DONE arrives on the same subscription.
+4. A failed replay shows a red line with `Try again`. An empty desk offers `Test a bill` and `Replay`.
+5. Optional read-only URL hints: `?bill=recology` selects a bill after the replay; `?panel=test` opens Test a bill.
 
-1. On first load (and on `Replay`), call `replayOpening`. While waiting, show the four row skeletons with `Reading…` and totals at `$0.00`.
-2. When the response arrives, reveal rows top to bottom with a 250 ms stagger (CSS only). Each row's chip flips from `Reading…` to its status.
-3. Totals count up over ~1.2 s to the values in `ReplayResponse.totals`. The Recology amount strikes through once its row lands.
-4. After the last row, auto-select the EBMUD row (the first HELD bill with a spike reason; fall back to the first HELD).
-5. No logo animation, no title card, no confetti. Respect `prefers-reduced-motion` (skip the stagger and count-up).
+## 4. Test a bill
 
-Replay is real `processBill` calls; the animation only paces the reveal of a response that already came back.
+- **Scenario cards are the hero:** a 2-column grid built from `JUDGE_CHIPS`, `ALIAS_TWIN`, and `LINE_SUM_FIXTURE`. Each card has a plain-English name and one line saying what the bill is, never the outcome. The twin card hints "Best after you assign the $420 Bayline bill" until the alias exists.
+- **`Edit details` is collapsed by default:** vendor, invoice, amount, due date, then service address, account, usage + unit, and line items. All inputs share one style.
+- **Upload is a slim dashed row:** PDF, PNG, JPEG, WEBP, sent through `processDocument`.
+- **Sticky footer:** `Run checks` (lime) shows `Reading → Matching → Checking` while it waits.
+- **The result shows inline:** status, verdict, amount, and next step, with `View in desk` and `Test another`. The new bill also lands in the tabs, selected and flashed once. Errors show inline in red, never as `alert()`.
 
-## 4. Detail pane
+## 5. Component map (`src/components/desk/`)
 
-Order top to bottom:
-
-1. **Header:** vendor, property (or `Unmatched`), amount, status chip, `resolved by HUMAN` tag when applicable, source tag (`FEED · Saturday intake`, `FORM`, `DOCUMENT · file.pdf`).
-2. **Why:** `decision.why`, one sentence, 16px. This is the most important text on screen.
-3. **Guardrails table:** one row per `decision.checks` entry: check name, outcome chip, `rationale`. Always 8 rows; PASS rows are what make it read like an audit, not an error console.
-4. **Match:** method chip (`EXACT_ACCOUNT`, `HUMAN_ALIAS`, `ADDRESS`, `HUMAN_ASSIGNED`, `UNRESOLVED`), confidence, candidates with scores and reasons. For `NEEDS_PROPERTY_MATCH`, show the bill's raw `service_address` snippet next to the top candidate with the unit token highlighted, plus `[Assign to {candidate}]` and a property dropdown for any other choice. The button text says it will remember: `Assign and remember this address`.
-5. **Usage bars** (only when the SPIKE check has `baseline_usage` or `baseline_amounts`): 3 seeded bars + this bill's bar, labeled with values, `SEEDED` badge. Plain divs, no chart library.
-6. **Investigator brief:** provider chip (`CREAO` or `CLAUDE`), status. PENDING/RUNNING shows a skeleton with `Investigating…` (CREAO can take up to a minute; the rest of the pane is already useful). DONE shows summary, findings bullets, and the draft (kind, to, subject, body) with `[Send]` (calls the send endpoint; button becomes `Sent ✓` and an audit row appears). If `creao_share_url` exists, show `View CREAO run ↗`. FAILED shows the error in one gray line. Copy under the brief: `Agents draft. People send. Code decides.`
-7. **Actions:**
-   - HELD: `[Approve as {required_approver}]`, `[Reject]`, optional note field. NEEDS_PROPERTY_MATCH uses Assign instead of Approve.
-   - BLOCKED: **no Approve, no Pay, no override.** Show `Blocked bills cannot be paid.`
-   - CLEARED: rail + `SIMULATED` badge + payment reference. No actions.
-8. **Audit timeline:** `audit` events in seq order: time, actor chip, action, decision chip, rationale. Show `hash` as the first 8 chars in mono. Footer: `chain ✓ intact` or `chain ✗ broken` from `BillsResponse.audit_chain_intact`.
-
-## 5. Judge Live Test drawer
-
-- Button in the header, always visible, high contrast. Keyboard shortcut `J`.
-- Two tabs: **Type a bill** (default) and **Drop a PDF / photo**.
-- Type tab fields: vendor, invoice #, account #, service address, amount, due date (default today 2026-10-25), usage qty + unit, optional line items (collapsed). Large inputs; amount field autofocused.
-- Chips above the form from `JUDGE_CHIPS` plus `ALIAS_TWIN`: clicking a chip **fills the inputs in plain sight**; nothing runs until `Run autonomous pipeline` is pressed. The $686 Recology chip is first.
-- Drop tab: drag area + file picker (PDF, PNG, JPEG, WEBP). Shows the filename, then the same result flow. If extraction fails, the resulting HELD bill shows `EXTRACTION_FAILED`; offer `Type it instead` which switches tabs and keeps whatever fields came back.
-- On run: button disabled with `Running…`; on response, close the drawer, insert the new bill at the top of `Live`, select it, and flash its row once. The blotter never clears between runs.
-- Errors from Convex show inline in the drawer, never as `alert()`.
-
-## 6. Policy card and Real vs Simulated
-
-- **Policy** drawer: `PortfolioResponse.policy_text` as a numbered list, plus a small table of properties with their contractor auto-pay limits. Header line: `Read-only at this desk.`
-- **Real vs Simulated** drawer: table from `PortfolioResponse.real_vs_simulated` (component, status chip REAL/SIMULATED/SEEDED, how to verify). Footer shows feature flags (CRS, CREAO, x402, extraction) as on/off.
-
-## 7. Live updates
-
-- Subscribe to `listBills`. Do not poll.
-- Keep the selected bill selected when the subscription updates (by id). No flicker: replace data in place.
-- A brief moving from PENDING to DONE arrives on that same subscription.
-
-## 8. Component map (suggested, all under `src/components/`)
-
-`CommandCenter` (client root), `HeaderBar`, `TotalsBar`, `Blotter`, `BillRow`, `DetailPane`, `GuardrailTable`, `MatchPanel`, `UsageBars`, `InvestigatorPanel`, `ActionBar`, `AuditTimeline`, `JudgeDrawer`, `PolicyDrawer`, `RealVsSimulatedDrawer`, `StatusChip`, `ActorChip`, `Money`. Call Convex with `useQuery`, `useMutation`, and `useAction`. Do not wrap a REST client.
-
-`src/app/page.tsx` renders `<CommandCenter />` and nothing else.
-
-As built:
-- `desk.ts` is the UI contract: `DeskData` / `DeskActions` mirror the Convex functions one to one, plus each component's props and display labels.
-- `useConvexDesk.ts` is the only file that calls `useQuery` / `useMutation` / `useAction` (paths: `api.bills.queries.listBills`, `api.bills.queries.getPortfolio`, `api.pipeline.process.processBill` with `{ input: JSON }`, `api.pipeline.process.replayOpening` (an action), `api.bills.resume.humanResume`).
-- `CommandCenter` wires that hook into `DeskView`, which owns layout, tabs, selection, drawers, `J`/`Esc`, and the opening replay.
-- `__mocks__/mockDesk.ts` is a dev-only desk with the same shape that runs the real engine in the browser (no Convex). Never import it from `page.tsx`.
-- `CommandCenter` renders `Landing`: `ReceiptPrinter` on top, then `DeskView` in `#desk`. Both read one `useConvexDesk` result. `CheckMark` renders check outcomes.
+`LiveDesk` (Convex root; renders `ReceiptPrinter` on top, then the desk in `#desk`) → `Desk` (layout, tabs, story, overlays) with `useDesk` (replay, selection, keyboard). `TopBar`, `Evidence` (+ `AssignControls`, `PaymentLine`), `Agent`, `Decide`, `Details`, `TestBill`, `Drawers` (Policy, Real vs simulated), `story.ts` (verdict copy), `ui.tsx` (tokens, icons, chips, buttons), `contract.ts` (`DeskData` / `DeskActions` and labels), `useConvexDesk.ts` (the only file that calls Convex). `src/components/__mocks__/mockDesk.ts` runs the same engine in the browser for tests and previews; never import it from `src/app`.
