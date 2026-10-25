@@ -8,7 +8,7 @@ import type { InvestigationContext } from "@/types/bill";
 import { investigationOutputSchema, type InvestigationOutput } from "@/integrations/creao/client";
 
 const CLAUDE_TIMEOUT_MS = 45_000;
-const DEFAULT_MODEL = "claude-opus-5-5";
+const DEFAULT_MODEL = "claude-sonnet-5-5";
 
 type InvestigatorRequest = Anthropic.MessageCreateParamsNonStreaming & {
   output_config: { effort: "medium" };
