@@ -262,3 +262,18 @@ export const matchBill: MatchBillFn = (extracted: ExtractedBill, ledger: LedgerS
 
   return unresolved(vendorId, vendorMatch, conflict, addressKey);
 };
+
+/** Display names for a bill: the canonical vendor, and the property only once the match is trusted. */
+export function matchNames(
+  extracted: ExtractedBill,
+  match: MatchResult,
+  ledger: LedgerSnapshot,
+): { vendor_name: string | null; property_name: string | null } {
+  const vendor = match.vendor_id ? ledger.vendors.find((row) => row.id === match.vendor_id) : undefined;
+  const trusted = match.property_id !== null && match.confidence >= POLICY.MIN_MATCH_CONFIDENCE;
+  const property = trusted && match.property_id ? propertyById(ledger.properties, match.property_id) : undefined;
+  return {
+    vendor_name: vendor?.name ?? extracted.vendor_name.value,
+    property_name: property?.name ?? null,
+  };
+}

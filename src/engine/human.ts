@@ -9,6 +9,12 @@ export function humanRefusal(
   kind: HumanKind,
   brief: Pick<InvestigationBrief, "status" | "draft"> | null,
 ): string | null {
+  // A drafted follow-up belongs to an open exception: sendable while HELD or BLOCKED, stale once a person resolved it.
+  if (kind === "send-draft") {
+    if (brief?.status !== "DONE" || brief.draft === null) return "There is no draft to send.";
+    if (bill.status !== "HELD" && bill.status !== "BLOCKED") return "This bill is resolved, so the draft is out of date.";
+    return null;
+  }
   if (bill.status === "BLOCKED") return "Blocked bills have no pay or approve control.";
   if (kind === "assign") {
     if (bill.status !== "HELD" || !bill.decision.reasons.includes("NEEDS_PROPERTY_MATCH")) {
@@ -23,11 +29,7 @@ export function humanRefusal(
     }
     return null;
   }
-  if (kind === "reject") {
-    if (bill.status !== "HELD") return "Reject is only for a held bill.";
-    return null;
-  }
-  if (brief?.status !== "DONE" || brief.draft === null) return "There is no draft to send.";
+  if (bill.status !== "HELD") return "Reject is only for a held bill.";
   return null;
 }
 

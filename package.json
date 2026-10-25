@@ -7,7 +7,8 @@
     "lint": "eslint .",
     "test": "vitest run",
     "typecheck": "tsc --noEmit",
-    "extract": "node --experimental-strip-types --disable-warning=MODULE_TYPELESS_PACKAGE_JSON src/agents/intake/cli.ts"
+    "extract": "node --experimental-strip-types --disable-warning=MODULE_TYPELESS_PACKAGE_JSON src/agents/intake/cli.ts",
+    "fixtures:bills": "node --experimental-strip-types --disable-warning=MODULE_TYPELESS_PACKAGE_JSON scripts/make-demo-bills.mjs"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^1.3.0",
@@ -30,6 +31,6 @@
     "eslint-config-next": "^16.0.0",
     "tailwindcss": "^4.1.16",
     "typescript": "^5.9.3",
-    "vitest": "^3.2.4"
+    "vitest": "^5.0.5"
   }
 }

@@ -150,7 +150,7 @@ export function checkExtraction(ctx: CheckContext): CheckResult {
     low.length ? `below 0.85: ${low.join(", ")}` : null,
     e.extraction_error ? e.extraction_error : null,
   ].filter(Boolean);
-  return result("EXTRACTION", "HALT", reasons, parts.join("; "));
+  return result("EXTRACTION", "HALT", reasons, parts.join("; "), { missing, low });
 }
 
 /** master-spec §5.1 MATCH */

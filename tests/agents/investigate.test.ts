@@ -388,6 +388,21 @@ describe("investigate", () => {
     });
   });
 
+  it("waits out a CREAO 429 and still returns the CREAO brief", async () => {
+    enableCreao();
+    fetchMock
+      .mockResolvedValueOnce(
+        new Response(JSON.stringify({ error: "RATE_LIMITED" }), { status: 429, headers: { "Retry-After": "0" } }),
+      )
+      .mockResolvedValueOnce(jsonResponse({ id: "run-429", status: "pending" }))
+      .mockResolvedValueOnce(jsonResponse({ status: "completed", result: { text: JSON.stringify(modelBrief) } }));
+
+    const brief = await investigate(contextFor(["USAGE_SPIKE"]));
+
+    expect(brief).toMatchObject({ status: "DONE", provider: "CREAO", creao_run_id: "run-429" });
+    expect(fetchMock).toHaveBeenCalledTimes(3);
+  });
+
   it("falls back to Claude when the CREAO request fails", async () => {
     enableCreao();
     claudeReturns();

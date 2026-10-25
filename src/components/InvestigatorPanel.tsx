@@ -48,6 +48,11 @@ export function InvestigatorPanel({ bill, actions }: { bill: BillView; actions: 
             {brief.provider}
           </span>
         )}
+        {brief.provider === "CREAO" && brief.creao_run_id && (
+          <span title={`CREAO run ${brief.creao_run_id}`} className="label-mono rounded-md bg-raised px-2 py-0.5 text-[10.5px] text-muted">
+            RUN {brief.creao_run_id.slice(0, 8)}
+          </span>
+        )}
         <span className="text-[12.5px] text-muted">{working ? "Investigating…" : STATUS_LABEL[brief.status]}</span>
         {brief.creao_share_url && (
           <a href={brief.creao_share_url} target="_blank" rel="noopener noreferrer" className="focus-ring ml-auto rounded text-[12.5px] text-muted underline-offset-2 hover:underline">
@@ -86,17 +91,18 @@ export function InvestigatorPanel({ bill, actions }: { bill: BillView; actions: 
         {brief.status === "DONE" && brief.draft && (
           brief.draft_sent ? (
             <span className="btn btn-outline px-5 py-2.5 text-[14px]" aria-label="Draft sent">Sent ✓</span>
+          ) : sendRefusal ? (
+            <p className="text-[12.5px] text-muted">{sendRefusal}</p>
           ) : (
-            <button type="button" className="btn btn-light px-5 py-2.5 text-[14px]" disabled={sendRefusal !== null || busy} title={sendRefusal ?? undefined} onClick={send}>
+            <button type="button" className="btn btn-light px-5 py-2.5 text-[14px]" disabled={busy} onClick={send}>
               {busy ? "Sending…" : "Send"}
             </button>
           )
         )}
-        <p className="text-[12.5px] text-muted">Agents draft. People send. Code decides.</p>
+        {!(brief.status === "DONE" && brief.draft && !brief.draft_sent && sendRefusal) && (
+          <p className="text-[12.5px] text-muted">Agents draft. People send. Code decides.</p>
+        )}
       </div>
-      {brief.status === "DONE" && brief.draft && !brief.draft_sent && sendRefusal && (
-        <p className="-mt-2 text-[12px] text-muted">{sendRefusal}</p>
-      )}
       <p aria-live="polite" className="-mt-2 text-[12px] font-semibold text-paper empty:hidden">{error}</p>
     </div>
   );
