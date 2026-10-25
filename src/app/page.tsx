@@ -1,3 +1,5 @@
+import { CommandCenter } from "@/components/CommandCenter";
+
 export default function HomePage() {
-  return null;
+  return <CommandCenter />;
 }

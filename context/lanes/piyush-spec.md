@@ -46,17 +46,17 @@ Use `useQuery`, `useMutation`, and `useAction` for `listBills`, `getPortfolio`, 
 
 ## Checklist (update only this list, in the same commit as the work)
 
-- [ ] Mocks + `CommandCenter` skeleton rendering the opening four from mocks
-- [ ] Header (legend, seats line, buttons), `TotalsBar`, `Blotter`, `BillRow`
-- [ ] `DetailPane`: why, `GuardrailTable`, `MatchPanel`, `AuditTimeline`, `ActionBar`
-- [ ] Convex client wired; switched from mocks to `listBills` (6:00 PM gate)
-- [ ] Opening animation from `replayOpening` + auto-select + reduced motion
-- [ ] Judge Live Test drawer: type tab, chips, run, insert + select new bill
-- [ ] Judge drawer: document upload tab + extraction-failed path
-- [ ] Assign-and-remember flow; alias twin chip demo works end to end
-- [ ] Investigator panel + live brief updates + Send + CREAO link
-- [ ] Usage bars, Policy drawer, Real vs Simulated drawer
-- [ ] Pixel pass at 1440×900 and 1280×800
+- [x] Mocks + `CommandCenter` skeleton rendering the opening four from mocks (`__mocks__/mockDesk.ts` runs the real engine)
+- [x] Header (legend, seats line, buttons), `TotalsBar`, `Blotter`, `BillRow`
+- [x] `DetailPane`: why, `GuardrailTable`, `MatchPanel`, `AuditTimeline`, `ActionBar`
+- [x] Convex client wired; switched from mocks to `listBills` (6:00 PM gate). Code-complete via `useConvexDesk`; not yet run against a live deployment.
+- [x] Opening animation from `replayOpening` + auto-select + reduced motion
+- [x] Judge Live Test drawer ("Test a bill"): type tab, chips incl. line-sum, run, insert + select new bill
+- [x] Judge drawer: document upload tab + extraction-failed path
+- [x] Assign-and-remember flow; alias twin chip demo works end to end (on the mock desk)
+- [x] Investigator panel + live brief updates + Send + CREAO link
+- [x] Usage bars, Policy drawer, Real vs Simulated drawer
+- [x] Pixel pass at 1440×900 and 1280×800 (clipping sweep on every bill state and drawer)
 - [ ] Eraser architecture diagram exported for the README
 - [ ] Video recorded (first frame = blotter) + Devpost image
 - [x] `ReceiptPrinter`: scroll-driven 3D thermal printer that prints the tab from a `listBills` response (lines in `receipt/receiptLines.ts`, tests in `tests/ui/`). Not mounted yet.
