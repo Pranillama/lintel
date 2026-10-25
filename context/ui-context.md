@@ -34,13 +34,17 @@ Data comes only from Convex (`listBills`, `getPortfolio`, `processBill`, `humanR
 - The detail pane is always visible; selecting a row swaps it. No modal for bill details, no route change.
 - Drawers (Judge Live Test, Policy, Real vs Simulated) slide over the detail pane from the right, never over the blotter or totals.
 
-## 2. Visual language
+## 2. Visual language — Bento Lime (Figma: "Lintel · Final wireframe (Bento Lime)")
 
-- Ink on a light background. Neutral grays for structure. **Color only inside status chips and check outcomes.**
-- Status chips: `CLEARED` green, `HELD` amber, `BLOCKED` red, `REJECTED` gray. Same hue for check outcomes PASS/HALT/BLOCK; SKIP is gray.
-- Actor chips in the audit timeline: `AI` (violet) for AI_EXTRACTION / AI_INVESTIGATOR, `CODE` (slate) for DETERMINISTIC_RULE / PAYMENT_ROUTER / SYSTEM_FEED, `HUMAN` (blue) for HUMAN_*, `CRS` (teal). These colors mirror the header legend `AI reads · CODE decides · HUMAN owns`.
-- Numbers: tabular figures (`font-variant-numeric: tabular-nums`), right-aligned amounts, `$1,234.56`. BLOCKED amounts get one strike-through.
-- Type: Geist Sans for text, Geist Mono for invoice numbers, account numbers, hashes. Body 14px, row amounts 16px, totals 32px.
+The §1 sketch shows the information order; the built layout is the Bento Lime wireframe: a header with pill tabs (All bills · Needs you · Blocked · Cleared · Live, display filters only), a hero row (intake title, "Needs you" total, blocked/cleared meters, audit chain line), then a 400px bill column beside a 2×2 bento detail area. Drawers cover only the detail area.
+
+- Dark page (`bar #0a0a0a`, cards `#191919`, raised `#262626`), 30px card radius, 14px gaps. Tokens live in `src/app/globals.css`.
+- **Exactly three light colors:** paper `#f2f1ec`, muted `#8c8c86`, lime `#c8f25a`. **Lime means one thing: "needs you"** (HELD chip, held ring, HALT check, the held total, the spike bar on a held bill). The Test-a-bill drawer is the one lime card that is not a status.
+- Status chips: `HELD` → "Needs you" (lime fill), `CLEARED` → paper outline, `BLOCKED` → muted, `REJECTED` → muted outline. Check outcomes: PASS raised ✓, HALT lime !, BLOCK paper ✕, SKIP muted –.
+- Actor chips keep the legend `AI reads · CODE decides · HUMAN owns`, distinguished by shape instead of hue: `AI` outline, `CODE` raised, `HUMAN` paper fill, `CRS` dashed.
+- Numbers: tabular figures, `$1,234.56`. BLOCKED amounts get one strike-through.
+- Type: Poppins for text, IBM Plex Mono for labels, invoice/account numbers and hashes (loaded with `next/font` in `layout.tsx`).
+- The header button reads "＋ Test a bill" (shortcut `J`); the drawer behaves exactly as §5 describes.
 - Badges: `SIMULATED` small outline badge next to any rail; `SEEDED` where seed data is shown (usage baselines).
 - Pixel standard: aligned baselines in rows, consistent 8px spacing grid, no layout shift when a brief arrives (reserve its space with a skeleton), no text overflow at 1280px.
 
@@ -96,3 +100,10 @@ Order top to bottom:
 `CommandCenter` (client root), `HeaderBar`, `TotalsBar`, `Blotter`, `BillRow`, `DetailPane`, `GuardrailTable`, `MatchPanel`, `UsageBars`, `InvestigatorPanel`, `ActionBar`, `AuditTimeline`, `JudgeDrawer`, `PolicyDrawer`, `RealVsSimulatedDrawer`, `StatusChip`, `ActorChip`, `Money`. Call Convex with `useQuery`, `useMutation`, and `useAction`. Do not wrap a REST client.
 
 `src/app/page.tsx` renders `<CommandCenter />` and nothing else.
+
+As built:
+- `desk.ts` is the UI contract: `DeskData` / `DeskActions` mirror the Convex functions one to one, plus each component's props and display labels.
+- `useConvexDesk.ts` is the only file that calls `useQuery` / `useMutation` / `useAction` (paths: `api.bills.queries.listBills`, `api.bills.queries.getPortfolio`, `api.pipeline.process.processBill` with `{ input: JSON }`, `api.pipeline.process.replayOpening` (an action), `api.bills.resume.humanResume`).
+- `CommandCenter` wires that hook into `DeskView`, which owns layout, tabs, selection, drawers, `J`/`Esc`, and the opening replay.
+- `__mocks__/mockDesk.ts` is a dev-only desk with the same shape that runs the real engine in the browser (no Convex). Never import it from `page.tsx`.
+- `CheckMark` renders check outcomes; `ReceiptPrinter` (scroll-driven printed tab) exists but is not mounted on `/`.
