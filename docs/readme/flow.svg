@@ -1,0 +1,146 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1280" height="700" viewBox="0 0 1280 700">
+  <rect width="1280" height="700" fill="#0a0a0a"/>
+
+  <text x="40" y="46" fill="#8c8c86" font-family="Helvetica, Arial, sans-serif" font-size="13" font-weight="700" letter-spacing="1.6">AI READS · CODE DECIDES · A PERSON OWNS THE EXCEPTION</text>
+
+  <g font-family="Helvetica, Arial, sans-serif" font-size="14" font-weight="700">
+    <rect x="742" y="28" width="54" height="26" rx="13" fill="#241c33"/>
+    <text x="769" y="46" fill="#c4aaff" text-anchor="middle">AI</text>
+    <rect x="808" y="28" width="78" height="26" rx="13" fill="#1c2410"/>
+    <text x="847" y="46" fill="#c8f25a" text-anchor="middle">CODE</text>
+    <rect x="898" y="28" width="92" height="26" rx="13" fill="#242422"/>
+    <text x="944" y="46" fill="#f2f1ec" text-anchor="middle">PERSON</text>
+    <text x="1008" y="46" fill="#8c8c86" font-size="14" font-weight="500">Status comes from code.</text>
+  </g>
+
+  <!-- connectors, row 1 -->
+  <g fill="none" stroke="#3a3a36" stroke-width="2">
+    <path d="M250 210 H290" marker-end="url(#arr)"/>
+    <path d="M520 210 H560" marker-end="url(#arr)"/>
+    <path d="M920 210 H960" marker-end="url(#arr)"/>
+  </g>
+
+  <!-- Bill -->
+  <g>
+    <rect x="40" y="96" width="210" height="228" rx="16" fill="#141414" stroke="#2a2a28"/>
+    <rect x="40" y="96" width="4" height="228" rx="2" fill="#f2f1ec"/>
+    <text x="64" y="132" fill="#8c8c86" font-family="Helvetica, Arial, sans-serif" font-size="12" font-weight="700" letter-spacing="1.4">IN</text>
+    <text x="64" y="168" fill="#f2f1ec" font-family="Helvetica, Arial, sans-serif" font-size="22" font-weight="700">Bill in</text>
+    <text x="64" y="200" fill="#8c8c86" font-family="Helvetica, Arial, sans-serif" font-size="16">PDF or photo</text>
+    <rect x="64" y="228" width="72" height="64" rx="6" fill="none" stroke="#8c8c86" stroke-width="1.5"/>
+    <path d="M64 248 H136 M76 264 H124 M76 276 H116" stroke="#8c8c86" stroke-width="1.5"/>
+    <rect x="148" y="244" width="56" height="48" rx="6" fill="none" stroke="#c8f25a" stroke-width="1.5"/>
+    <circle cx="176" cy="262" r="6" fill="none" stroke="#c8f25a" stroke-width="1.5"/>
+    <path d="M164 282 H188" stroke="#c8f25a" stroke-width="1.5"/>
+  </g>
+
+  <!-- Haiku -->
+  <g>
+    <rect x="290" y="96" width="230" height="228" rx="16" fill="#141414" stroke="#2a2a28"/>
+    <rect x="290" y="96" width="4" height="228" rx="2" fill="#c4aaff"/>
+    <text x="314" y="132" fill="#c4aaff" font-family="Helvetica, Arial, sans-serif" font-size="12" font-weight="700" letter-spacing="1.4">AI</text>
+    <text x="314" y="168" fill="#f2f1ec" font-family="Helvetica, Arial, sans-serif" font-size="22" font-weight="700">Haiku</text>
+    <text x="314" y="204" fill="#c8c8c2" font-family="Helvetica, Arial, sans-serif" font-size="16">Reads vendor, meter,</text>
+    <text x="314" y="228" fill="#c8c8c2" font-family="Helvetica, Arial, sans-serif" font-size="16">lines, confidence.</text>
+    <text x="314" y="276" fill="#8c8c86" font-family="Helvetica, Arial, sans-serif" font-size="14">A low read holds.</text>
+  </g>
+
+  <!-- Decide -->
+  <g>
+    <rect x="560" y="96" width="360" height="228" rx="16" fill="#141414" stroke="#2a2a28"/>
+    <rect x="560" y="96" width="4" height="228" rx="2" fill="#c8f25a"/>
+    <text x="584" y="132" fill="#c8f25a" font-family="Helvetica, Arial, sans-serif" font-size="12" font-weight="700" letter-spacing="1.4">CODE</text>
+    <text x="584" y="168" fill="#f2f1ec" font-family="Helvetica, Arial, sans-serif" font-size="22" font-weight="700">Match and decide</text>
+    <text x="584" y="198" fill="#8c8c86" font-family="Helvetica, Arial, sans-serif" font-size="14">Property, vendor, then the checks.</text>
+    <g font-family="Helvetica, Arial, sans-serif" font-size="14" font-weight="700" fill="#c8f25a">
+      <rect x="584" y="220" width="100" height="30" rx="15" fill="#1c2410"/>
+      <text x="634" y="240" text-anchor="middle">Duplicate</text>
+      <rect x="694" y="220" width="72" height="30" rx="15" fill="#1c2410"/>
+      <text x="730" y="240" text-anchor="middle">Spike</text>
+      <rect x="776" y="220" width="108" height="30" rx="15" fill="#1c2410"/>
+      <text x="830" y="240" text-anchor="middle">Line-sum</text>
+      <rect x="584" y="260" width="64" height="30" rx="15" fill="#1c2410"/>
+      <text x="616" y="280" text-anchor="middle">CRS</text>
+      <rect x="658" y="260" width="84" height="30" rx="15" fill="#1c2410"/>
+      <text x="700" y="280" text-anchor="middle">Policy</text>
+    </g>
+  </g>
+
+  <!-- Outcomes -->
+  <g font-family="Helvetica, Arial, sans-serif">
+    <rect x="960" y="96" width="280" height="228" rx="16" fill="#141414" stroke="#2a2a28"/>
+    <rect x="960" y="96" width="4" height="228" rx="2" fill="#c8f25a"/>
+    <text x="984" y="128" fill="#c8f25a" font-size="12" font-weight="700" letter-spacing="1.4">CODE</text>
+    <rect x="984" y="146" width="232" height="48" rx="10" fill="#10241c"/>
+    <text x="1000" y="168" fill="#3ccf91" font-size="15" font-weight="700">CLEARED</text>
+    <text x="1000" y="186" fill="#8c8c86" font-size="12">Approved for payment</text>
+    <rect x="984" y="202" width="232" height="48" rx="10" fill="#1c2410"/>
+    <text x="1000" y="224" fill="#c8f25a" font-size="15" font-weight="700">HELD</text>
+    <text x="1000" y="242" fill="#8c8c86" font-size="12">Spike, confidence, match</text>
+    <rect x="984" y="258" width="232" height="48" rx="10" fill="#2a1412"/>
+    <text x="1000" y="280" fill="#ff7a70" font-size="15" font-weight="700">BLOCKED</text>
+    <text x="1000" y="298" fill="#8c8c86" font-size="12">Duplicate, line-sum, CRS</text>
+  </g>
+
+  <!-- down from held/blocked -->
+  <path d="M1100 324 V392 H220 V430" fill="none" stroke="#3a3a36" stroke-width="2" marker-end="url(#arr)"/>
+  <rect x="470" y="374" width="196" height="26" rx="13" fill="#0a0a0a"/>
+  <text x="568" y="392" fill="#8c8c86" font-family="Helvetica, Arial, sans-serif" font-size="13" font-weight="700" text-anchor="middle">HELD OR BLOCKED ONLY</text>
+
+  <!-- row 2 arrows -->
+  <g fill="none" stroke="#3a3a36" stroke-width="2">
+    <path d="M420 530 H460" marker-end="url(#arr)"/>
+    <path d="M840 530 H880" marker-end="url(#arr)"/>
+  </g>
+
+  <!-- CREAO -->
+  <g>
+    <rect x="40" y="440" width="380" height="180" rx="16" fill="#141414" stroke="#2a2a28"/>
+    <rect x="40" y="440" width="4" height="180" rx="2" fill="#c4aaff"/>
+    <text x="64" y="476" fill="#c4aaff" font-family="Helvetica, Arial, sans-serif" font-size="12" font-weight="700" letter-spacing="1.4">AI</text>
+    <text x="64" y="514" fill="#f2f1ec" font-family="Helvetica, Arial, sans-serif" font-size="22" font-weight="700">CREAO investigator</text>
+    <text x="64" y="548" fill="#c8c8c2" font-family="Helvetica, Arial, sans-serif" font-size="16">Drafts the follow-up.</text>
+    <text x="64" y="576" fill="#8c8c86" font-family="Helvetica, Arial, sans-serif" font-size="15">Claude writes it if CREAO is down.</text>
+  </g>
+
+  <!-- Person -->
+  <g>
+    <rect x="460" y="440" width="380" height="180" rx="16" fill="#141414" stroke="#2a2a28"/>
+    <rect x="460" y="440" width="4" height="180" rx="2" fill="#f2f1ec"/>
+    <text x="484" y="476" fill="#f2f1ec" font-family="Helvetica, Arial, sans-serif" font-size="12" font-weight="700" letter-spacing="1.4">PERSON</text>
+    <text x="484" y="514" fill="#f2f1ec" font-family="Helvetica, Arial, sans-serif" font-size="22" font-weight="700">Approves or rejects</text>
+    <text x="484" y="548" fill="#c8c8c2" font-family="Helvetica, Arial, sans-serif" font-size="16">One click. The status changes here.</text>
+    <text x="484" y="576" fill="#8c8c86" font-family="Helvetica, Arial, sans-serif" font-size="15">An assigned address is remembered.</text>
+  </g>
+
+  <!-- Owl -->
+  <g>
+    <rect x="880" y="440" width="360" height="180" rx="16" fill="#141414" stroke="#2a2a28"/>
+    <rect x="880" y="440" width="4" height="180" rx="2" fill="#c4aaff"/>
+    <text x="904" y="476" fill="#c4aaff" font-family="Helvetica, Arial, sans-serif" font-size="12" font-weight="700" letter-spacing="1.4">AI</text>
+    <text x="1000" y="514" fill="#f2f1ec" font-family="Helvetica, Arial, sans-serif" font-size="22" font-weight="700">Owl explains</text>
+    <text x="1000" y="546" fill="#c8c8c2" font-family="Helvetica, Arial, sans-serif" font-size="16">Talk to Lintel</text>
+    <text x="1000" y="574" fill="#8c8c86" font-family="Helvetica, Arial, sans-serif" font-size="15">Repeats what code decided.</text>
+    <!-- orb -->
+    <circle cx="948" cy="556" r="36" fill="#c8f25a"/>
+    <path d="M928 530 L934 540 L922 540 Z" fill="#62752f" opacity="0.7"/>
+    <path d="M968 530 L974 540 L962 540 Z" fill="#62752f" opacity="0.7"/>
+    <circle cx="934" cy="550" r="12" fill="#62752f"/>
+    <circle cx="962" cy="550" r="12" fill="#62752f"/>
+    <circle cx="934" cy="550" r="9" fill="#f2f1ec"/>
+    <circle cx="962" cy="550" r="9" fill="#f2f1ec"/>
+    <circle cx="936" cy="552" r="4.5" fill="#0a0a0a"/>
+    <circle cx="964" cy="552" r="4.5" fill="#0a0a0a"/>
+    <circle cx="934.5" cy="550.2" r="1.4" fill="#f2f1ec"/>
+    <circle cx="962.5" cy="550.2" r="1.4" fill="#f2f1ec"/>
+    <path d="M943 566 L953 566 L948 574 Z" fill="#0a0a0a"/>
+  </g>
+
+  <text x="40" y="660" fill="#8c8c86" font-family="Helvetica, Arial, sans-serif" font-size="15">Cleared stops on the first row. Every step, including the human one, lands in the hash-chained audit log.</text>
+
+  <defs>
+    <marker id="arr" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M0 1.2 L8.5 5 L0 8.8 Z" fill="#8c8c86"/>
+    </marker>
+  </defs>
+</svg>
