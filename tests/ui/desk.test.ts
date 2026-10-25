@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { errorMessage, inTab, REASON_LABEL, type BlotterTab } from "@/components/desk";
+import { errorMessage, inTab, REASON_LABEL, type BlotterTab } from "@/components/desk/contract";
 import type { BillView, ReasonCode } from "@/types/bill";
 
 const bill = (status: BillView["status"], source: BillView["source"] = "FEED") => ({ status, source }) as BillView;
