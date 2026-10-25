@@ -2,7 +2,7 @@ import { v } from "convex/values";
 import { query } from "../_generated/server";
 import { verifyChain } from "../../src/audit/chain";
 import { computeTotals } from "../../src/engine/totals";
-import { POLICY_TEXT, REAL_VS_SIMULATED, SEATS_LINE } from "../../src/seed/policy";
+import { POLICY_TEXT, SEATS_LINE } from "../../src/seed/policy";
 import type { BillView } from "../../src/types/bill";
 import { briefFor, eventsFor, loadLedger, readBill } from "../lib/records";
 
@@ -42,9 +42,9 @@ export const getPortfolio = query({
     return {
       properties: ledger.properties,
       vendors: ledger.vendors,
+      accounts: ledger.accounts,
       policy_text: POLICY_TEXT,
       seats_line: SEATS_LINE,
-      real_vs_simulated: REAL_VS_SIMULATED,
       flags: {
         crs_enabled: flag("LINTEL_CRS_ENABLED"),
         creao_enabled: Boolean(process.env.CREAO_API_KEY && process.env.CREAO_AGENT_ID),

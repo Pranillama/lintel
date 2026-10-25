@@ -103,3 +103,4 @@ There is no `src/app/api`. Piyush uses the Convex client.
 - [ ] Golden tests switched to the real `matchBill`; boundary test green
 - [ ] 6:00 PM gate: replay totals correct from the UI
 - [ ] Freeze checklist (master-spec §9) items you own all green
+- [x] Real data only (`feature/properties-info`): no seed, no replay, no simulated payments; Properties & vendors view with add property / vendor / account (`convex/portfolio/admin.ts` + `tests/portfolio/admin.test.ts`). See master-spec amendment.

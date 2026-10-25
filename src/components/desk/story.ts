@@ -50,9 +50,9 @@ export function str(v: unknown): string | null {
   return typeof v === "string" && v ? v : null;
 }
 
-function railText(bill: BillView): string {
+function approvedText(bill: BillView): string {
   const rail = bill.payment?.rail ?? bill.decision.rail;
-  return rail ? RAIL_LABEL[rail] : "Payment";
+  return rail ? `Approved for payment via ${RAIL_LABEL[rail]}` : "Approved for payment";
 }
 
 export function storyKind(bill: BillView): StoryKind {
@@ -146,23 +146,23 @@ export function storyOf(bill: BillView): Story {
     }
     case "learned":
       return bill.match.method === "HUMAN_ALIAS"
-        ? { kind, headline: "Matched by an address a person taught", next: `${railText(bill)}, simulated. No human touch this time.`, row: "Learned address" }
-        : { kind, headline: "You taught Lintel this address", next: `${railText(bill)}, simulated. The next bill from here matches on its own.`, row: "Assigned by you" };
+        ? { kind, headline: "Matched by an address a person taught", next: `${approvedText(bill)}. No human touch this time.`, row: "Learned address" }
+        : { kind, headline: "You taught Lintel this address", next: `${approvedText(bill)}. The next bill from here matches on its own.`, row: "Assigned by you" };
     case "cleared": {
       const amountPct = num(check(bill, "SPIKE")?.data.amount_variance_pct);
       const limit = num(check(bill, "POLICY")?.data.limit);
       const human = bill.resolved_by === "HUMAN";
       return {
         kind,
-        headline: human ? "Approved by a person" : "Paid on its own",
-        next: `${railText(bill)}, simulated.${human ? "" : " No one needed to touch it."}`,
+        headline: human ? "Approved by a person" : "Approved on its own",
+        next: `${approvedText(bill)}.${human ? "" : " No one needed to touch it."}`,
         row: human
           ? "Approved by you"
           : amountPct !== null && check(bill, "SPIKE")?.outcome === "PASS"
             ? `${formatPct(amountPct)} vs usual`
             : limit !== null
               ? `Under ${formatUsd(limit)} limit`
-              : "Scheduled",
+              : "Approved",
       };
     }
     case "rejected":

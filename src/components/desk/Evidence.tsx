@@ -9,8 +9,7 @@ import { useState } from "react";
 import { formatPct, formatQty, formatUsd } from "@/engine/format";
 import { humanRefusal } from "@/engine/human";
 import { POLICY } from "@/seed/policy";
-import { VENDORS } from "@/seed/portfolio";
-import type { BillView, Property } from "@/types/bill";
+import type { BillView, Property, Vendor } from "@/types/bill";
 import { CHECK_LABEL, errorMessage, type DeskActions } from "./contract";
 import { humanize } from "./Details";
 import { check, failedChecks, MATCH_NEEDS, num, RAIL_LABEL, splitUnit, storyKind, str } from "./story";
@@ -33,7 +32,7 @@ function numbers(value: unknown): number[] {
   return Array.isArray(value) ? value.filter((n): n is number => typeof n === "number") : [];
 }
 
-/** Reads the SPIKE check's seeded baseline. Null when there is nothing to draw. */
+/** Reads the SPIKE check's baseline. Null when there is nothing to draw. */
 function spikeSeries(bill: BillView): Series | null {
   const d = check(bill, "SPIKE")?.data;
   if (!d) return null;
@@ -65,12 +64,12 @@ export function evidenceTitle(bill: BillView): string {
   }
 }
 
-export function Evidence({ bill }: { bill: BillView }) {
+export function Evidence({ bill, vendors }: { bill: BillView; vendors: Vendor[] }) {
   switch (storyKind(bill)) {
     case "spike": return <SpikeEvidence bill={bill} />;
     case "duplicate": return <DuplicateEvidence bill={bill} />;
     case "property": return <PropertyEvidence bill={bill} />;
-    case "vendor": return <VendorEvidence bill={bill} />;
+    case "vendor": return <VendorEvidence bill={bill} vendors={vendors} />;
     case "linesum": return <LineSumEvidence bill={bill} />;
     case "learned": return <LearnedEvidence bill={bill} />;
     case "cleared": return <PaymentEvidence bill={bill} />;
@@ -92,7 +91,7 @@ function SpikeEvidence({ bill }: { bill: BillView }) {
   const h = 80;
   return (
     <div className="flex flex-col gap-4">
-      <div className="flex items-end gap-4" role="list" aria-label="Seeded baseline and this bill">
+      <div className="flex items-end gap-4" role="list" aria-label="Past bills and this bill">
         {values.map((v, i) => {
           const current = i === values.length - 1;
           return (
@@ -115,7 +114,7 @@ function SpikeEvidence({ bill }: { bill: BillView }) {
         {series.avg !== null && <span>Usual <span className="text-paper tabular-nums">{fmt(series.avg)}{unit && ` ${unit}`}</span></span>}
         {series.variancePct !== null && <span>This bill <span className="text-paper tabular-nums">{formatPct(series.variancePct)}</span></span>}
         {series.thresholdPct !== null && <span>Rule: hold above +{series.thresholdPct}%</span>}
-        <span className="ml-auto"><Tag>Seeded baseline</Tag></span>
+        <span className="ml-auto"><Tag>Paid history</Tag></span>
       </div>
     </div>
   );
@@ -275,8 +274,8 @@ const KIND_TEXT = {
   UNVERIFIED_CONTRACTOR: "In the file, identity not verified",
 } as const;
 
-function VendorEvidence({ bill }: { bill: BillView }) {
-  const vendor = VENDORS.find((v) => v.id === bill.match.vendor_id);
+function VendorEvidence({ bill, vendors }: { bill: BillView; vendors: Vendor[] }) {
+  const vendor = vendors.find((v) => v.id === bill.match.vendor_id);
   const policy = check(bill, "POLICY");
   const limit = num(policy?.data.limit);
   const rows: Array<[string, string, boolean]> = [
@@ -350,16 +349,18 @@ function LearnedEvidence({ bill }: { bill: BillView }) {
   );
 }
 
-/* ---------- Cleared: payment rail ---------- */
+/* ---------- Cleared: approved for payment ---------- */
 
-export function PaymentLine({ bill }: { bill: BillView }) {
-  const rail = bill.payment?.rail ?? bill.decision.rail;
+export function PaymentLine({ bill, vendors }: { bill: BillView; vendors: Vendor[] }) {
+  // Bills saved before simulated payments were removed can still carry a SIMULATED record; only a testnet one is shown.
+  const live = bill.payment?.mode === "LIVE_TESTNET" ? bill.payment : null;
+  const rail = bill.decision.rail ?? vendors.find((v) => v.id === bill.match.vendor_id)?.default_rail ?? null;
   return (
     <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
-      <span className={`${T.body} font-semibold`}>{rail ? RAIL_LABEL[rail] : "No rail"}</span>
-      <Tag>{bill.payment?.mode === "LIVE_TESTNET" ? "Testnet" : "Simulated"}</Tag>
-      <span className={`${T.small} text-muted`}>{bill.payment?.status === "SCHEDULED" ? "Scheduled" : bill.payment?.status ?? "Not scheduled"}</span>
-      {bill.payment?.reference && <span className="w-full break-all font-mono text-[12px] leading-4 text-muted" title={bill.payment.reference}>Ref {bill.payment.reference}</span>}
+      <span className={`${T.body} font-semibold`}>Approved for payment</span>
+      {rail && <span className={`${T.small} text-muted`}>via {RAIL_LABEL[live?.rail ?? rail]}</span>}
+      {live && <Tag>Testnet · {live.status.toLowerCase()}</Tag>}
+      {live?.reference && <span className="w-full break-all font-mono text-[12px] leading-4 text-muted" title={live.reference}>Ref {live.reference}</span>}
     </div>
   );
 }

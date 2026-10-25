@@ -2,9 +2,9 @@
  * The AP desk contract the screen is built on.
  *
  * `DeskData` and `DeskActions` mirror the Convex functions one to one
- * (listBills, getPortfolio, processBill, humanResume, replayOpening). The page
- * gets them from Convex through `useConvexDesk`; tests and the preview use a mock
- * desk with the same shape. Components never call Convex directly and never compute
+ * (listBills, getPortfolio, processBill, humanResume, addProperty, addVendor,
+ * addVendorAccount). The page gets them from Convex through `useConvexDesk`.
+ * Components never call Convex directly and never compute
  * a status, a total, a percentage, or a why-sentence: they render what the desk gives them.
  */
 import type {
@@ -15,10 +15,14 @@ import type {
   BillView,
   CheckId,
   PortfolioResponse,
+  Property,
   ReasonCode,
   Totals,
   UploadedDocument,
+  Vendor,
+  VendorAccount,
 } from "@/types/bill";
+import type { NewAccountInput, NewPropertyInput, NewVendorInput } from "@/portfolio/admin";
 
 export interface DeskData {
   /** Newest first, as listBills returns them. */
@@ -32,8 +36,6 @@ export interface DeskData {
 
 /** Every action rejects with an Error whose message is safe to show inline (ConvexError text). */
 export interface DeskActions {
-  /** replayOpening: wipes live bills and replays the 4 opening bills. Resolves with those bills. */
-  replay(): Promise<BillView[]>;
   /** processBill({ kind: "FORM", form }). */
   processForm(form: BillFormInput): Promise<BillView>;
   /** processBill({ kind: "DOCUMENT", document }). */
@@ -46,9 +48,16 @@ export interface DeskActions {
   reject(billId: string, note?: string): Promise<BillView>;
   /** humanResume({ kind: "send-draft" }). Logs an audit row; nothing leaves the app. */
   sendDraft(billId: string): Promise<BillView>;
+  /** addProperty. Resolves with the saved property. */
+  addProperty(input: NewPropertyInput): Promise<Property>;
+  /** addVendor. Resolves with the saved vendor. */
+  addVendor(input: NewVendorInput): Promise<Vendor>;
+  /** addVendorAccount. Utilities only. */
+  addAccount(input: NewAccountInput): Promise<VendorAccount>;
 }
 
-export type DrawerKind = "policy" | "rvs";
+export type DrawerKind = "policy";
+export type DeskView = "desk" | "portfolio";
 export type BlotterTab = "all" | "held" | "blocked" | "cleared" | "live";
 
 /* ---------- Shared labels (display only, never logic) ---------- */

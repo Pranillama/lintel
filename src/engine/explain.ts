@@ -113,12 +113,12 @@ export function explain(input: {
     const account = extracted.account_number.value ?? "";
     const variance =
       avg !== null && pct !== null ? `${formatUsd(amount)} is ${formatPct(pct)} vs the last ${count} ${vendor?.name ?? "utility"} bills (${formatUsd(avg)} avg). ` : "";
-    return `Matched ${property?.name ?? "the property"} by account ${account}. ${variance}Not a duplicate. Enrolled utility: cleared to the utility portal (simulated).`;
+    return `Matched ${property?.name ?? "the property"} by account ${account}. ${variance}Not a duplicate. Enrolled utility: approved for payment through the utility portal.`;
   }
 
   if (reasons.length === 0 && rail === "ACH" && amount !== null) {
     const limit = numOrNull(checks.find((c) => c.id === "POLICY")?.data.limit);
-    return `${formatUsd(amount)} is at or under the ${limit === null ? "auto-pay" : formatUsd(limit)} auto-pay limit. Not a duplicate. Cleared to ACH (simulated).`;
+    return `${formatUsd(amount)} is at or under the ${limit === null ? "auto-pay" : formatUsd(limit)} auto-pay limit. Not a duplicate. Approved for payment by ACH.`;
   }
 
   if (reasons.includes("UTILITY_NOT_ACCOUNT_MATCHED")) {

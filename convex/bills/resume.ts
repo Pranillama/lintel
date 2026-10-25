@@ -3,8 +3,8 @@ import { mutation } from "../_generated/server";
 import { appendEvents } from "../../src/audit/append";
 import { decide } from "../../src/engine/decide";
 import { humanRefusal, type HumanKind } from "../../src/engine/human";
-import type { AuditEvent, BillRecord, BillView, InvestigationBrief, MatchResult, PaymentInstruction } from "../../src/types/bill";
-import { billById, briefFor, eventsFor, loadLedger, readBill, saveBill, saveBrief, saveEvents, savePayment } from "../lib/records";
+import type { AuditEvent, BillRecord, BillView, InvestigationBrief, MatchResult } from "../../src/types/bill";
+import { billById, briefFor, eventsFor, loadLedger, readBill, saveBill, saveBrief, saveEvents } from "../lib/records";
 
 export const humanResume = mutation({
   args: {
@@ -80,28 +80,21 @@ export const humanResume = mutation({
         rationale: decision.why,
         data: {},
       });
-      const payment = decision.status === "CLEARED" && decision.rail ? simulated(bill.id, decision.rail) : null;
       const next: BillRecord = {
         ...bill,
         match,
         decision,
         status: decision.status,
         resolved_by: "HUMAN",
-        payment,
         property_name: property.name,
       };
-      if (payment) await savePayment(ctx, bill.id, payment);
       await saveBill(ctx, next);
       await saveEvents(ctx, await appendEvents(previous.at(-1) ?? null, drafts));
       return { ...next, audit: await eventsFor(ctx, bill.id), investigation: brief };
     }
 
     if (args.kind === "approve") {
-      const ledger = await loadLedger(ctx);
-      const vendor = ledger.vendors.find((item) => item.id === bill.match.vendor_id);
-      const rail = vendor?.default_rail ?? bill.decision.rail ?? "ACH";
-      const payment = simulated(bill.id, rail);
-      const next: BillRecord = { ...bill, status: "CLEARED", resolved_by: "HUMAN", payment };
+      const next: BillRecord = { ...bill, status: "CLEARED", resolved_by: "HUMAN" };
       drafts.push({
         bill_id: bill.id,
         ts,
@@ -111,7 +104,6 @@ export const humanResume = mutation({
         rationale: `${bill.decision.required_approver}${args.note ? `: ${args.note}` : ""}`,
         data: { approver: bill.decision.required_approver },
       });
-      await savePayment(ctx, bill.id, payment);
       await saveBill(ctx, next);
       await saveEvents(ctx, await appendEvents(previous.at(-1) ?? null, drafts));
       return { ...next, audit: await eventsFor(ctx, bill.id), investigation: brief };
@@ -149,7 +141,3 @@ export const humanResume = mutation({
     return { ...bill, audit: await eventsFor(ctx, bill.id), investigation: sent };
   },
 });
-
-function simulated(billId: string, rail: PaymentInstruction["rail"]): PaymentInstruction {
-  return { rail, mode: "SIMULATED", status: "SCHEDULED", reference: null, idempotency_key: billId };
-}

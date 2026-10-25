@@ -26,9 +26,7 @@ function openingBills(): BillView[] {
       decision,
       status: decision.status,
       resolved_by: "AUTO",
-      payment: decision.status === "CLEARED" && decision.rail
-        ? { rail: decision.rail, mode: "SIMULATED", status: "SCHEDULED", reference: null, idempotency_key: row.key }
-        : null,
+      payment: null,
       vendor_name: VENDORS.find((v) => v.id === match.vendor_id)?.name ?? null,
       property_name: PROPERTIES.find((p) => p.id === match.property_id)?.name ?? null,
       amount: extracted.total_amount.value,

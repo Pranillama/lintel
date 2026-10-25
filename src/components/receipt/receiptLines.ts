@@ -69,7 +69,8 @@ function detail(bill: BillView): string {
   const reasons = bill.decision.reasons;
   switch (bill.status) {
     case "CLEARED": {
-      const rail = bill.payment ? `${words(bill.payment.rail)} · ${bill.payment.mode === "LIVE_TESTNET" ? "TESTNET" : "SIMULATED"}` : "CLEARED";
+      const live = bill.payment?.mode === "LIVE_TESTNET" ? bill.payment : null;
+      const rail = live ? `${words(live.rail)} · TESTNET` : bill.decision.rail ? `${words(bill.decision.rail)} · APPROVED` : "APPROVED";
       return bill.resolved_by === "HUMAN" ? `${rail} · BY HUMAN` : rail;
     }
     case "BLOCKED": {

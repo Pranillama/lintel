@@ -1,6 +1,6 @@
 "use client";
 
-/** Policy and Real vs simulated: read-only sheets over the story, content from getPortfolio. */
+/** Policy: a read-only sheet over the story, content from getPortfolio. Sheet is shared with the portfolio view. */
 import type { ReactNode } from "react";
 import { formatUsd } from "@/engine/format";
 import type { PortfolioResponse } from "@/types/bill";
@@ -44,7 +44,7 @@ export function PolicySheet({ portfolio, onClose }: { portfolio: PortfolioRespon
               </li>
             ))}
           </ol>
-          <section className="flex flex-col">
+          {portfolio.properties.length > 0 && <section className="flex flex-col">
             <h3 className={`${T.label} pb-2 text-muted`}>Contractor auto-pay limits</h3>
             {portfolio.properties.map((p) => (
               <div key={p.id} className="flex items-baseline justify-between gap-4 border-t border-white/[0.08] py-2">
@@ -52,40 +52,8 @@ export function PolicySheet({ portfolio, onClose }: { portfolio: PortfolioRespon
                 <span className={`${T.body} tabular-nums`}>{formatUsd(p.contractor_auto_pay_limit)}</span>
               </div>
             ))}
-          </section>
+          </section>}
           <p className={`${T.small} text-muted`}>{portfolio.seats_line}</p>
-        </div>
-      )}
-    </Sheet>
-  );
-}
-
-const STATUS_CLS = { REAL: "bg-ok/15 text-ok", SIMULATED: "text-muted shadow-[inset_0_0_0_1px_rgba(140,140,134,0.45)]", SEEDED: "text-muted shadow-[inset_0_0_0_1px_rgba(140,140,134,0.45)]" } as const;
-
-export function RealVsSimulatedSheet({ portfolio, onClose }: { portfolio: PortfolioResponse | undefined; onClose(): void }) {
-  return (
-    <Sheet title="Real vs simulated" sub="What runs for real in this demo, and how to check it yourself." onClose={onClose}>
-      {!portfolio ? <Loading /> : (
-        <div className="flex flex-col gap-6">
-          <ul className="flex flex-col">
-            {portfolio.real_vs_simulated.map((row) => (
-              <li key={row.component} className="grid grid-cols-[104px_1fr] gap-x-3 gap-y-1 border-t border-white/[0.08] py-3 first:border-t-0">
-                <span className={`inline-flex h-6 items-center justify-self-start rounded-full px-2 ${T.label} ${STATUS_CLS[row.status]}`}>{row.status}</span>
-                <span className={`${T.body} font-semibold`}>{row.component}</span>
-                <span className={`${T.small} col-start-2 text-muted`}>{row.how_to_verify}</span>
-              </li>
-            ))}
-          </ul>
-          <section className="flex flex-col">
-            <h3 className={`${T.label} pb-2 text-muted`}>Feature flags</h3>
-            <div className="flex flex-wrap gap-2">
-              {(Object.entries(portfolio.flags) as Array<[string, boolean]>).map(([k, on]) => (
-                <span key={k} className={`inline-flex h-8 items-center gap-1 rounded-full pl-2 pr-3 text-[14px] font-semibold ${on ? "bg-ok/15 text-ok" : "text-muted shadow-[inset_0_0_0_1px_rgba(140,140,134,0.45)]"}`}>
-                  <Icon name={on ? "check" : "slash"} /> {k.replace(/_enabled$/, "").toUpperCase()} {on ? "on" : "off"}
-                </span>
-              ))}
-            </div>
-          </section>
         </div>
       )}
     </Sheet>

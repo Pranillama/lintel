@@ -1,16 +1,16 @@
 "use client";
 
 /**
- * Screen state for the desk: the opening replay, selection, Test a bill, drawers
- * and keyboard. Works with the Convex desk or the mock desk (same shape).
+ * Screen state for the desk: the view (desk or properties & vendors), selection,
+ * Test a bill, drawers and keyboard.
  *
  * Optional, read-only URL hints (handy for demos and screenshots):
- *   ?bill=EBMUD | recology | bayline | pge | BILL-103   select a bill after the replay
- *   ?panel=test                                          open Test a bill
+ *   ?bill=<vendor name or bill id>   select that bill once bills load
+ *   ?panel=test                       open Test a bill
  */
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import type { BillView } from "@/types/bill";
-import { errorMessage, type DeskActions, type DeskData, type DrawerKind } from "./contract";
+import type { DeskActions, DeskData, DeskView, DrawerKind } from "./contract";
 
 export interface DeskHints {
   bill?: string;
@@ -25,8 +25,8 @@ function findBill(bills: BillView[], query: string | undefined): BillView | unde
   return bills.find((b) => norm(b.id) === q) ?? bills.find((b) => norm(b.vendor_name ?? "").includes(q));
 }
 
-/** The bill to show after a replay: the first held spike bill, else the first held bill, else the first bill. */
-function openingPick(bills: BillView[]): BillView | undefined {
+/** The bill to show by default: the first held spike bill, else the first held bill, else the newest bill. */
+function defaultPick(bills: BillView[]): BillView | undefined {
   const held = bills.filter((b) => b.status === "HELD");
   return held.find((b) => b.decision.reasons.some((r) => r === "USAGE_SPIKE" || r === "AMOUNT_SPIKE")) ?? held[0] ?? bills[0];
 }
@@ -38,45 +38,20 @@ function isTyping(t: EventTarget | null): boolean {
 
 export function useDesk(data: DeskData, actions: DeskActions, hints: DeskHints = {}) {
   const [selectedId, setSelectedId] = useState<string | null>(null);
-  const [replaying, setReplaying] = useState(true);
-  const [replayError, setReplayError] = useState<string | null>(null);
+  const [view, setView] = useState<DeskView>("desk");
   const [testOpen, setTestOpen] = useState(hints.panel === "test");
   const [drawer, setDrawer] = useState<DrawerKind | null>(null);
   const [flashId, setFlashId] = useState<string | null>(null);
-  const started = useRef(false);
-
-  const replay = useCallback(async (pickQuery?: string) => {
-    setReplaying(true);
-    setReplayError(null);
-    setSelectedId(null);
-    try {
-      // Pick from what the replay returned; the subscription may still be catching up.
-      const bills = await actions.replay();
-      setSelectedId((findBill(bills, pickQuery) ?? openingPick(bills))?.id ?? null);
-    } catch (err) {
-      setReplayError(errorMessage(err));
-    } finally {
-      setReplaying(false);
-    }
-  }, [actions]);
-
-  // Replay the opening batch once on first load.
-  useEffect(() => {
-    // Deferred so StrictMode's mount, unmount, mount runs it exactly once.
-    const t = window.setTimeout(() => {
-      if (started.current) return;
-      started.current = true;
-      void replay(hints.bill);
-    }, 0);
-    return () => window.clearTimeout(t);
-  }, [replay, hints.bill]);
-
-  // Keep the selection valid as the subscription updates; fall back to the first bill.
-  const selected = useMemo(() => data.bills.find((b) => b.id === selectedId) ?? (replaying ? undefined : data.bills[0]), [data.bills, selectedId, replaying]);
+  // Keep the selection valid as the subscription updates. Until someone picks a bill, the ?bill= hint wins, then the default pick.
+  const selected = useMemo(
+    () => data.bills.find((b) => b.id === selectedId) ?? (selectedId === null ? findBill(data.bills, hints.bill) : undefined) ?? defaultPick(data.bills),
+    [data.bills, selectedId, hints.bill],
+  );
 
   const select = useCallback((id: string) => {
     setSelectedId(id);
     setTestOpen(false);
+    setView("desk");
   }, []);
 
   /** A bill from Test a bill landed: select and flash it, keep the panel open. */
@@ -106,7 +81,7 @@ export function useDesk(data: DeskData, actions: DeskActions, hints: DeskHints =
 
   return {
     data, actions, bills: data.bills, selected, select,
-    replaying: replaying || data.loading, replayError, replay: () => void replay(),
+    loading: data.loading, view, setView,
     testOpen, setTestOpen, drawer, setDrawer, landed, flashId,
   };
 }

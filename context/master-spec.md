@@ -5,6 +5,13 @@ Hard deadline: **Devpost submit Sunday Oct 25, 9:00 AM PDT.** Judging 10:30 AM, 
 
 This is the base spec. If a lane spec or a teammate's agent disagrees with this file, this file wins. Changes go through `context/ai-workflow-rules.md`.
 
+> **Amendment, Oct 25 (branch `feature/properties-info`, pending 👍 from Pranil and Piyush): real data only.** This overrides the sections below where they disagree.
+> - No seeding at runtime: `convex/seed.ts` is gone and `processBill` no longer seeds. Properties, vendors, and utility accounts are added by an admin in the **Properties & vendors** view (`addProperty`, `addVendor`, `addVendorAccount` in `convex/portfolio/admin.ts`, validated by `src/portfolio/admin.ts`). `src/seed/portfolio.ts` and `demo-inputs.ts` remain only as test fixtures.
+> - No replay: `replayOpening` is removed; the desk shows what `listBills` returns. No opening batch, no Saturday intake, no scenario chips in Test a bill.
+> - No simulated payments: a cleared bill is **approved for payment** (audit `ROUTE_PAYMENT` rationale `<rail> APPROVED_FOR_PAYMENT`) with no payment row. Only a real x402 testnet settlement writes a payment (`mode: "LIVE_TESTNET"`). `PaymentInstruction.mode` is `"LIVE_TESTNET"` only.
+> - Real vs Simulated is removed (`REAL_VS_SIMULATED`, `PortfolioResponse.real_vs_simulated`). `PortfolioResponse` gains `accounts`.
+> - Spike and duplicate checks read the saved `history` table plus bills already on the desk; nothing new is written to `history`. A new vendor + property with fewer than `MIN_BASELINE_BILLS` prior bills holds with `NO_BASELINE` until real bills build up.
+
 ---
 
 ## 1. Product in one paragraph

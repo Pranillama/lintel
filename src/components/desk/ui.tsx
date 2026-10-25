@@ -91,7 +91,7 @@ export function ErrorLine({ children }: { children: ReactNode }) {
   );
 }
 
-/** Quiet mono tag: SIMULATED, SEEDED, CREAO, RUN id. */
+/** Quiet mono tag: Testnet, CREAO, RUN id. */
 export function Tag({ children, title }: { children: ReactNode; title?: string }) {
   return (
     <span title={title} className={`inline-flex h-6 shrink-0 items-center rounded-full px-2 text-muted shadow-[inset_0_0_0_1px_rgba(140,140,134,0.45)] ${T.label}`}>

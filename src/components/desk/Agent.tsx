@@ -116,7 +116,7 @@ export function AgentDraft({ bill, actions }: { bill: BillView; actions: DeskAct
                   <>
                     {sendControl}
                     <p className={`${T.small} min-w-0 flex-1 text-muted`}>
-                      {!brief.draft_sent && refusal ? refusal : "Agents draft. People send. Nothing leaves the app (simulated)."}
+                      {!brief.draft_sent && refusal ? refusal : "Agents draft. People send. Send records it in the audit log."}
                     </p>
                     {error && <ErrorLine>{error}</ErrorLine>}
                   </>
