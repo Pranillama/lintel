@@ -1,12 +1,13 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import type { BillView } from "@/types/bill";
+import type { BillView, BillsResponse } from "@/types/bill";
 import { Blotter } from "./Blotter";
 import { DetailPane } from "./DetailPane";
 import { HeaderBar } from "./HeaderBar";
 import { JudgeDrawer } from "./JudgeDrawer";
 import { PolicyDrawer } from "./PolicyDrawer";
+import { ReceiptPrinter } from "./ReceiptPrinter";
 import { RealVsSimulatedDrawer } from "./RealVsSimulatedDrawer";
 import { TotalsBar } from "./TotalsBar";
 import { useConvexDesk } from "./useConvexDesk";
@@ -28,11 +29,49 @@ function isTyping(target: EventTarget | null): boolean {
 /** The AP Command Center, live on Convex. This is what `/` renders. */
 export function CommandCenter() {
   const { data, actions } = useConvexDesk();
-  return <DeskView data={data} actions={actions} />;
+  return <Landing data={data} actions={actions} />;
+}
+
+/**
+ * Landing page: the scroll-driven receipt printer prints the live tab first, then the
+ * AP desk sits below it. Both read the same desk data, so the tab and the desk always agree.
+ */
+export function Landing({ data, actions, autoReplay = true }: { data: DeskData; actions: DeskActions; autoReplay?: boolean }) {
+  const deskRef = useRef<HTMLDivElement>(null);
+  // Feed the printer once there are bills; until then it shows its warming-up state.
+  const response: BillsResponse | undefined =
+    data.totals && data.bills.length > 0 ? { bills: data.bills, totals: data.totals, audit_chain_intact: data.auditChainIntact } : undefined;
+  const revealDesk = useCallback(() => {
+    const reduce = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    deskRef.current?.scrollIntoView({ behavior: reduce ? "auto" : "smooth", block: "start" });
+  }, []);
+
+  return (
+    <>
+      <a href="#desk" className="sr-only z-50 rounded-full bg-lime px-5 py-3 text-sm font-semibold text-bar focus:not-sr-only focus:fixed focus:left-6 focus:top-6">
+        Skip to the AP desk
+      </a>
+      <ReceiptPrinter response={response} trackHeight="700vh" onOpenDesk={revealDesk} />
+      <div id="desk" ref={deskRef} className="scroll-mt-0">
+        <DeskView data={data} actions={actions} autoReplay={autoReplay} onRevealDesk={revealDesk} />
+      </div>
+    </>
+  );
 }
 
 /** Layout and screen state for the desk. Works with the Convex desk or a mock desk of the same shape. */
-export function DeskView({ data, actions, autoReplay = true }: { data: DeskData; actions: DeskActions; autoReplay?: boolean }) {
+export function DeskView({
+  data,
+  actions,
+  autoReplay = true,
+  onRevealDesk,
+}: {
+  data: DeskData;
+  actions: DeskActions;
+  autoReplay?: boolean;
+  /** Scroll the desk into view (the landing page puts the printer above it). */
+  onRevealDesk?: () => void;
+}) {
   const [tab, setTab] = useState<BlotterTab>("all");
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [drawer, setDrawer] = useState<DrawerKind | null>(null);
@@ -85,12 +124,13 @@ export function DeskView({ data, actions, autoReplay = true }: { data: DeskData;
       }
       if ((e.key === "j" || e.key === "J") && !e.metaKey && !e.ctrlKey && !e.altKey && !isTyping(e.target)) {
         e.preventDefault();
+        onRevealDesk?.();
         setDrawer("judge");
       }
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [drawer]);
+  }, [drawer, onRevealDesk]);
 
   const counts = useMemo(
     () => Object.fromEntries(TABS.map((t) => [t, data.bills.filter((b) => inTab(b, t)).length])) as Record<BlotterTab, number>,
