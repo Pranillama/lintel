@@ -8,8 +8,18 @@ import { useState, type FormEvent, type ReactNode } from "react";
 import type { BillView, UsageUnit, UtilityType, Vendor, VendorKind } from "@/types/bill";
 import { errorMessage, type DeskActions } from "../desk/contract";
 import { Sheet } from "../desk/Drawers";
-import { Field, INPUT } from "../desk/TestBill";
 import { Button, ErrorLine, Icon, T } from "../desk/ui";
+
+export const INPUT = "h-10 w-full min-w-0 rounded-[10px] bg-bar px-3 text-[14px] leading-5 text-paper tabular-nums shadow-[inset_0_0_0_1px_rgba(242,241,236,0.12)] outline-none placeholder:text-muted focus:shadow-[inset_0_0_0_1px_rgba(242,241,236,0.6)]";
+
+export function Field({ label, children, wide = false }: { label: string; children: ReactNode; wide?: boolean }) {
+  return (
+    <label className={`flex min-w-0 flex-col gap-1 ${wide ? "col-span-2" : ""}`}>
+      <span className={`${T.small} text-muted`}>{label}</span>
+      {children}
+    </label>
+  );
+}
 
 export const KIND_LABEL: Record<VendorKind, string> = {
   ENROLLED_UTILITY: "Utility",
