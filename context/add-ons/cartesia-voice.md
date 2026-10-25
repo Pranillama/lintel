@@ -11,7 +11,7 @@ Cartesia **Managed Agents** handle the listening, turn-taking, interruptions, sp
 
 > The model reads the bill. Code decides whether it gets paid. **The voice agent can only repeat what code decided. It has no tool that approves, rejects, assigns, or pays.** A person owns the exceptions.
 
-> **Browser-only is the current cut.** The panel is `src/components/app/VoicePanel.tsx`, a fixed mascot in the corner of `AppShell` (every app page, including `/bills/[id]`). `get_selected_bill` uses the open bill id when the path is `/bills/[id]`. PR #27 removed `Desk.tsx`, `useDesk.ts`, `TopBar.tsx`, and `LiveDesk.tsx`, so those hooks stay stale. Client tools are `get_selected_bill` and `show_bill`. Setup is `scripts/cartesia-setup.mjs` with `--dry-run`. There is no `--phone` path.
+> **Browser-only is the current cut.** The panel is `src/components/app/VoicePanel.tsx`, a fixed owl mascot in the corner of `AppShell` (every app page, including `/bills/[id]`). `get_selected_bill` uses the open bill id when the path is `/bills/[id]`. PR #27 removed `Desk.tsx`, `useDesk.ts`, `TopBar.tsx`, and `LiveDesk.tsx`, so those hooks stay stale. Client tools are `get_selected_bill` and `show_bill`. Setup is `scripts/cartesia-setup.mjs` with `--dry-run`. There is no `--phone` path.
 
 Cross-links: `context/master-spec.md` §4 (AI allowed vs forbidden), §5.2–§5.3 (status, approver, why-sentences); `context/ui-context.md` §1; `context/ai-workflow-rules.md` §2, §8; `context/add-ons/capital-one-payments.md` (payment status the agent can report); `context/add-ons/portfolio-ask.md` (typed Q&A; its "no voice" non-goal is about that drawer only).
 
@@ -154,7 +154,7 @@ Created once by `scripts/cartesia-agents.mjs` (run by hand; prints the agent ids
 
 ### 5.4 Browser voice panel (built)
 
-The panel is the fixed corner mascot in `src/components/app/VoicePanel.tsx`, mounted from `AppShell`, so it is on `/bills/[id]` and the other app pages. `startVoiceSession` in `convex/pipeline/voice.ts` mints the access token with `CARTESIA_API_KEY` and returns a `wss://` URL. The browser answers `get_selected_bill` and `show_bill`. The notes below are the original desk-file plan. Those files are gone; do not recreate them.
+The panel is the fixed corner owl in `src/components/app/VoicePanel.tsx`, mounted from `AppShell`, so it is on `/bills/[id]` and the other app pages. `startVoiceSession` in `convex/pipeline/voice.ts` mints the access token with `CARTESIA_API_KEY` and returns a `wss://` URL. The browser answers `get_selected_bill` and `show_bill`. The notes below are the original desk-file plan. Those files are gone; do not recreate them.
 
 ### 5.4a Original browser panel plan (Piyush lane, `src/components/desk/voice/`)
 

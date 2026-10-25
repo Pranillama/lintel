@@ -4,14 +4,16 @@
  * Browser voice, fixed in the corner. Mic audio goes out as PCM, agent audio plays back,
  * and audio_output_clear flushes playback (barge-in). The API key never reaches this file.
  * `?voicePreview=pill|open` seeds a fake transcript in development only.
+ * `listening`, `speaking`, `thinking`, and `connecting` pose the owl without a live call.
  */
 import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState, useSyncExternalStore } from "react";
 import { useAction } from "convex/react";
 import { api } from "../../../convex/_generated/api";
+import { timeDomainRms } from "@/voice/owl";
 import { reduceTranscriptOpen, transcriptPillVisible } from "@/voice/transcriptDock";
 import { ErrorLine, Icon, T } from "../desk/ui";
-import { RemOrb } from "./RemOrb";
+import { OwlTalk, type OwlHandle } from "./OwlMascot";
 import {
   answerClientTool,
   applyTranscript,
@@ -39,10 +41,13 @@ const STATUS_WORD: Record<VoiceStatus, string> = {
 
 const FOCUS = "outline-none focus-visible:ring-2 focus-visible:ring-paper focus-visible:ring-offset-2 focus-visible:ring-offset-bar";
 
-function voicePreview(): "pill" | "open" | null {
+type VoicePreview = "pill" | "open" | "listening" | "speaking" | "thinking" | "connecting";
+
+function voicePreview(): VoicePreview | null {
   if (process.env.NODE_ENV === "production") return null;
   const mode = new URLSearchParams(window.location.search).get("voicePreview");
-  return mode === "pill" || mode === "open" ? mode : null;
+  if (mode === "pill" || mode === "open" || mode === "listening" || mode === "speaking" || mode === "thinking" || mode === "connecting") return mode;
+  return null;
 }
 
 function subscribeVoicePreview(): () => void {
@@ -78,14 +83,17 @@ export function VoicePanel({ billId }: { billId: string }) {
   const [lines, setLines] = useState<TranscriptLine[]>([]);
   const [problem, setProblem] = useState<string | null>(null);
   const [blocked, setBlocked] = useState(false);
+  const [awaitingAgent, setAwaitingAgent] = useState(false);
+  const [hasAnalyser, setHasAnalyser] = useState(false);
   const preview = useSyncExternalStore(subscribeVoicePreview, voicePreview, noVoicePreview);
   const [sessionTranscriptOpen, setSessionTranscriptOpen] = useState(false);
   const [previewClosed, setPreviewClosed] = useState(false);
   const transcriptOpen = sessionTranscriptOpen || (preview === "open" && !previewClosed);
-  const shownLines = lines.length > 0 ? lines : preview ? PREVIEW_LINES : lines;
+  const shownLines = lines.length > 0 ? lines : preview === "pill" || preview === "open" ? PREVIEW_LINES : lines;
   const closeRef = useRef<HTMLButtonElement>(null);
   const pillRef = useRef<HTMLButtonElement>(null);
   const talkRef = useRef<HTMLButtonElement>(null);
+  const owlRef = useRef<OwlHandle>(null);
   const listRef = useRef<HTMLOListElement>(null);
   const transcriptWasOpen = useRef(false);
 
@@ -127,6 +135,8 @@ export function VoicePanel({ billId }: { billId: string }) {
   function hangUp() {
     liveRef.current?.stop();
     liveRef.current = null;
+    setAwaitingAgent(false);
+    setHasAnalyser(false);
     setStatus("idle");
   }
 
@@ -174,11 +184,33 @@ export function VoicePanel({ billId }: { billId: string }) {
     let nextTime = 0;
     let sessionReady = false;
     let closed = false;
+    let analyser: AnalyserNode | null = null;
+    try {
+      analyser = audio.createAnalyser();
+      analyser.fftSize = 512;
+      setHasAnalyser(true);
+    } catch {
+      setHasAnalyser(false);
+    }
+    if (analyser) analyser.connect(audio.destination);
+    const levelBuf = analyser ? new Uint8Array(analyser.fftSize) : null;
+    let levelRaf = 0;
+    const watchLevel = () => {
+      if (!analyser || !levelBuf) return;
+      analyser.getByteTimeDomainData(levelBuf);
+      owlRef.current?.setLevel(timeDomainRms(levelBuf));
+      levelRaf = requestAnimationFrame(watchLevel);
+    };
+    if (analyser) levelRaf = requestAnimationFrame(watchLevel);
 
     const stop = () => {
       if (closed) return;
       closed = true;
       sessionReady = false;
+      cancelAnimationFrame(levelRaf);
+      owlRef.current?.setLevel(0);
+      setHasAnalyser(false);
+      setAwaitingAgent(false);
       for (const node of sources) {
         try { node.stop(); } catch { /* already ended */ }
       }
@@ -212,7 +244,7 @@ export function VoicePanel({ billId }: { billId: string }) {
       buffer.getChannelData(0).set(samples);
       const node = audio.createBufferSource();
       node.buffer = buffer;
-      node.connect(audio.destination);
+      node.connect(analyser ?? audio.destination);
       const startAt = Math.max(audio.currentTime + 0.05, nextTime);
       node.start(startAt);
       nextTime = startAt + buffer.duration;
@@ -233,8 +265,16 @@ export function VoicePanel({ billId }: { billId: string }) {
     ws.onmessage = (message) => {
       const event = parseServerEvent(String(message.data));
       if (event.type === "session_ready") sessionReady = true;
-      if (event.type === "audio_output") play(event.audio);
-      if (event.type === "audio_output_clear") clearPlayback();
+      if (event.type === "audio_output") {
+        setAwaitingAgent(false);
+        play(event.audio);
+      }
+      if (event.type === "audio_output_clear") {
+        setAwaitingAgent(false);
+        clearPlayback();
+      }
+      if (event.type === "turn_ended" && event.role === "user") setAwaitingAgent(true);
+      if (event.type === "turn_started" && event.role === "user") setAwaitingAgent(false);
       if (event.type === "client_tool_call") {
         const answer = answerClientTool(event.tool_name, event.parameters, billIdRef.current);
         if (event.expects_response) {
@@ -258,6 +298,39 @@ export function VoicePanel({ billId }: { billId: string }) {
 
   const label = status === "idle" ? "Talk to Lintel" : "Hang up";
   const showPill = transcriptPillVisible(transcriptOpen, status, shownLines.length);
+  const poseStatus: VoiceStatus = status !== "idle"
+    ? status
+    : preview === "listening" || preview === "thinking"
+      ? "listening"
+      : preview === "speaking"
+        ? "speaking"
+        : preview === "connecting"
+          ? "connecting"
+          : "idle";
+  const levelDriven = hasAnalyser || preview === "speaking";
+
+  useEffect(() => {
+    if (preview !== "speaking" || status !== "idle") return;
+    const owl = owlRef.current;
+    let raf = 0;
+    const started = performance.now();
+    const tick = (now: number) => {
+      const seconds = (now - started) / 1000;
+      const rate = 2.2;
+      const index = Math.floor(seconds * rate);
+      const beat = (seconds * rate) % 1;
+      const resting = index % 5 === 4;
+      const held = index % 5 === 2;
+      const syllable = resting ? 0 : held ? 1 : beat < 0.62 ? Math.sin((beat / 0.62) * Math.PI) : 0;
+      owl?.setLevel(syllable * 0.52);
+      raf = requestAnimationFrame(tick);
+    };
+    raf = requestAnimationFrame(tick);
+    return () => {
+      cancelAnimationFrame(raf);
+      owl?.setLevel(0);
+    };
+  }, [preview, status]);
 
   function closeTranscript() {
     setPreviewClosed(true);
@@ -320,21 +393,19 @@ export function VoicePanel({ billId }: { billId: string }) {
           Show transcript
         </button>
       )}
-      <div className="pointer-events-auto flex flex-col items-end gap-1">
-        <button
-          ref={talkRef}
-          type="button"
+      <div className="pointer-events-auto">
+        <OwlTalk
+          ref={owlRef}
+          buttonRef={talkRef}
+          status={poseStatus}
+          blocked={blocked || (problem !== null && status === "idle" && preview === null)}
+          awaitingAgent={awaitingAgent || preview === "thinking"}
+          hasAnalyser={levelDriven}
+          label={label}
           disabled={blocked}
-          aria-label={label}
           onClick={() => { if (status === "idle") void talk(); else hangUp(); }}
-          className={`flex items-center gap-2 rounded-full py-1 pl-1 disabled:cursor-not-allowed disabled:opacity-40 ${FOCUS}`}
-        >
-          <span className="inline-flex h-10 items-center rounded-full px-4 text-[14px] font-semibold leading-5 text-paper shadow-[inset_0_0_0_1px_rgba(242,241,236,0.3)] max-sm:px-3 max-sm:text-[13px]">
-            {label}
-          </span>
-          <RemOrb state={status} />
-        </button>
-        <span className={`${T.label} text-muted`} role="status" aria-live="polite">{STATUS_WORD[status]}</span>
+        />
+        <span className="sr-only" role="status" aria-live="polite">{STATUS_WORD[poseStatus]}</span>
       </div>
     </div>
   );

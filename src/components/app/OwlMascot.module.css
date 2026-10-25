@@ -1,0 +1,223 @@
+.unit {
+  display: flex;
+  width: 220px;
+  flex-direction: column;
+  align-items: center;
+}
+
+.owl {
+  position: relative;
+  z-index: 1;
+  width: 176px;
+  margin-bottom: -30px;
+  --beak: 0;
+}
+
+.owl svg {
+  display: block;
+  width: 100%;
+  height: auto;
+  overflow: visible;
+}
+
+.rig,
+.head,
+.wingLeft,
+.wingRight,
+.beakUpper,
+.beakLower {
+  transform-box: view-box;
+}
+
+.eye,
+.pupil,
+.eyelid,
+.dot {
+  transform-box: fill-box;
+}
+
+.rig { transform-origin: 100px 240px; }
+.head { transform-origin: 100px 112px; }
+.wingLeft { transform-origin: 70px 148px; }
+.wingRight { transform-origin: 138px 140px; }
+.eye { transform-origin: center; }
+.pupil { transform-origin: center; }
+.beakUpper { transform-origin: 100px 128px; }
+.beakLower { transform-origin: 100px 128px; }
+.eyelid { transform-origin: 50% 0%; transform: scaleY(0); }
+.dot { transform-origin: center; fill: var(--color-lime); opacity: 1; }
+.wingFront { opacity: 0; }
+
+.owl[data-breathe="true"] .rig {
+  animation: breathe 3.6s ease-in-out infinite;
+}
+
+.owl[data-head="tilt"] .head { transform: rotate(7deg); }
+
+.owl[data-head="shake"] .head { animation: shake 0.5s ease-in-out; }
+
+.owl[data-wing="cup"] .wingBack,
+.owl[data-wing="gesture"] .wingBack { opacity: 0; }
+
+.owl[data-wing="cup"] .wingFront,
+.owl[data-wing="gesture"] .wingFront { opacity: 1; }
+
+.owl[data-wing="cup"] .wingFront {
+  transform: translate(-6px, -48px) rotate(-150deg);
+  transition: transform 0.35s ease;
+}
+
+.owl[data-wing="gesture"] .wingFront {
+  animation: wingLift 4.4s ease-in-out infinite;
+}
+
+.owl[data-blink="normal"] .eyelid { animation: blink 4.6s infinite; }
+.owl[data-blink="fast"] .eyelid { animation: blink 1.45s infinite; }
+
+.owl[data-eyes="sleepy"] .eyelid {
+  animation: none;
+  transform: scaleY(0.58);
+  transition: transform 0.8s ease;
+}
+
+.owl[data-eyes="closed"] .eyelid {
+  animation: none;
+  transform: scaleY(1);
+}
+
+.owl[data-eyes="wide"] .eye { transform: scale(1.14); }
+
+.owl[data-eyes="up"] .pupil { transform: translateY(-5px); }
+
+.beakUpper { transform: translateY(calc(var(--beak) * -8px)) rotate(calc(var(--beak) * -18deg)); }
+.beakLower { transform: translateY(calc(var(--beak) * 14px)) rotate(calc(var(--beak) * 20deg)); }
+
+.owl[data-beak="flap"] .beakUpper { animation: beakUp 170ms ease-in-out infinite alternate; }
+.owl[data-beak="flap"] .beakLower { animation: beakDown 170ms ease-in-out infinite alternate; }
+
+.waves { opacity: 0; }
+.owl[data-waves="ear"] .wavesEar,
+.owl[data-waves="beak"] .wavesBeak { opacity: 1; }
+
+.wave {
+  fill: none;
+  stroke: var(--color-lime);
+  stroke-width: 3.2;
+  stroke-linecap: round;
+  opacity: 0.3;
+  animation: wave 1.05s ease-in-out infinite;
+}
+
+.wave:nth-child(2) { animation-delay: 0.14s; }
+.wave:nth-child(3) { animation-delay: 0.28s; }
+
+.dots { opacity: 0; }
+.owl[data-dots="true"] .dots { opacity: 1; }
+
+.dot { animation: dot 0.9s ease-in-out infinite; }
+
+.dot:nth-child(2) { animation-delay: 0.1s; }
+.dot:nth-child(3) { animation-delay: 0.2s; }
+.dot:nth-child(4) { animation-delay: 0.3s; }
+
+.owl[data-pose="disabled"] { filter: grayscale(1) brightness(0.72); }
+
+.perch {
+  position: relative;
+  z-index: 0;
+  width: 100%;
+  height: 52px;
+  margin: 0;
+  cursor: pointer;
+  border: 0;
+  border-radius: 999px;
+  padding: 18px 16px 0;
+  color: var(--color-bar);
+  font: 600 14px/20px var(--font-sans);
+  background:
+    radial-gradient(130% 100% at 50% 0%, color-mix(in srgb, var(--color-paper) 94%, white), transparent 58%),
+    linear-gradient(
+      180deg,
+      color-mix(in srgb, var(--color-paper) 76%, var(--color-muted)),
+      color-mix(in srgb, var(--color-muted) 62%, var(--color-paper))
+    );
+  box-shadow:
+    inset 0 1px 0 color-mix(in srgb, white 70%, var(--color-paper)),
+    inset 0 -4px 0 color-mix(in srgb, var(--color-muted) 72%, var(--color-bar)),
+    0 10px 18px color-mix(in srgb, var(--color-bar) 50%, transparent);
+}
+
+.perch:disabled { cursor: not-allowed; opacity: 0.45; }
+
+.perch:focus-visible {
+  outline: 2px solid var(--color-lime);
+  outline-offset: 3px;
+}
+
+@keyframes breathe {
+  0%, 100% { transform: scale(1, 1); }
+  50% { transform: scale(1.018, 1.035); }
+}
+
+@keyframes shake {
+  0% { transform: rotate(0deg); }
+  25% { transform: rotate(-9deg); }
+  55% { transform: rotate(8deg); }
+  80% { transform: rotate(-4deg); }
+  100% { transform: rotate(0deg); }
+}
+
+@keyframes wingLift {
+  0%, 58%, 100% { transform: rotate(0deg); }
+  70%, 88% { transform: translate(-4px, -42px) rotate(-142deg); }
+}
+
+@keyframes blink {
+  0%, 86%, 100% { transform: scaleY(0); }
+  91%, 95% { transform: scaleY(1); }
+}
+
+@keyframes beakUp {
+  from { transform: translateY(0) rotate(0deg); }
+  to { transform: translateY(-8px) rotate(-18deg); }
+}
+
+@keyframes beakDown {
+  from { transform: translateY(0) rotate(0deg); }
+  to { transform: translateY(14px) rotate(20deg); }
+}
+
+@keyframes wave {
+  0%, 100% { opacity: 0.2; }
+  50% { opacity: 1; }
+}
+
+@keyframes dot {
+  0%, 100% { transform: translateY(0); opacity: 0.72; }
+  50% { transform: translateY(-7px); opacity: 1; }
+}
+
+@media (max-width: 640px) {
+  .unit { width: 184px; }
+  .owl { width: 148px; margin-bottom: -24px; }
+  .perch { height: 46px; font-size: 13px; padding-top: 14px; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .rig,
+  .wingLeft,
+  .wingRight,
+  .head,
+  .wave,
+  .dot {
+    animation: none !important;
+    transition: none !important;
+  }
+
+  .wingLeft,
+  .wingRight,
+  .head { transform: none !important; }
+
+  .wingFront { opacity: 0 !important; }
+  .wingBack { opacity: 1 !important; }
+}
