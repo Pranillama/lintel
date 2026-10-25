@@ -379,19 +379,20 @@ export function VoicePanel({ billId }: { billId: string }) {
           Show transcript
         </button>
       )}
-      <div className="pointer-events-auto flex flex-col items-end gap-1">
+      {/* The mascot with its label right below it, and the status word under both. */}
+      <div className="pointer-events-auto flex flex-col items-center gap-1">
         <button
           ref={talkRef}
           type="button"
           disabled={blocked}
           aria-label={label}
           onClick={() => { if (status === "idle") void talk(); else hangUp(); }}
-          className={`flex items-center gap-2 rounded-full py-1 pl-1 disabled:cursor-not-allowed disabled:opacity-40 ${FOCUS}`}
+          className={`flex flex-col items-center gap-2 rounded-[24px] p-1 disabled:cursor-not-allowed disabled:opacity-40 ${FOCUS}`}
         >
-          <span className="inline-flex h-10 items-center rounded-full px-4 text-[14px] font-semibold leading-5 text-paper shadow-[inset_0_0_0_1px_rgba(242,241,236,0.3)] max-sm:px-3 max-sm:text-[13px]">
+          <RemOrb ref={orbRef} state={poseStatus} blocked={blocked} hasAnalyser={levelDriven} />
+          <span className="inline-flex h-9 items-center whitespace-nowrap rounded-full bg-card/80 px-4 text-[14px] font-semibold leading-5 text-paper shadow-[inset_0_0_0_1px_rgba(242,241,236,0.3)] backdrop-blur-md max-sm:px-3 max-sm:text-[13px]">
             {label}
           </span>
-          <RemOrb ref={orbRef} state={poseStatus} blocked={blocked} hasAnalyser={levelDriven} />
         </button>
         <span className={`${T.label} text-muted`} role="status" aria-live="polite">{STATUS_WORD[status]}</span>
       </div>

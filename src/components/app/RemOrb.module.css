@@ -1,16 +1,19 @@
 /*
  * Rem orb, ported from the live portfolio at pranillama.com
  * (RemOrb CSS module). The repo was not public.
- * Black disk stops map to --color-lime. The face is an owl: dark discs,
- * round eyes, and one amber beak (no warm color token exists).
+ * The face is a simple owl in the app's three colors: a lime disk, two big
+ * paper eyes with a dark-lime rim, small ear notches inside the circle, and a
+ * small dark beak. Lids are flat lime with a thin lash line.
  */
 .orb {
   --orb-disk: radial-gradient(
-    circle at 35% 28%,
-    color-mix(in srgb, var(--color-lime) 78%, var(--color-paper)) 0%,
-    var(--color-lime) 55%,
-    color-mix(in srgb, var(--color-lime) 62%, var(--color-bar)) 100%
+    circle at 34% 26%,
+    color-mix(in srgb, var(--color-lime) 80%, var(--color-paper)) 0%,
+    var(--color-lime) 52%,
+    color-mix(in srgb, var(--color-lime) 84%, var(--color-bar)) 100%
   );
+  --orb-rim: color-mix(in srgb, var(--color-lime) 46%, var(--color-bar));
+  --orb-ink: var(--color-bar);
   --orb-edge: color-mix(in srgb, var(--color-lime) 70%, var(--color-paper));
   --orb-eye: var(--color-bar);
   --orb-shadow: color-mix(in srgb, var(--color-bar) 54%, transparent);
@@ -18,7 +21,6 @@
   --look-x: 0px;
   --look-y: 0px;
   --beak: 0;
-  --orb-beak: #e08a2e;
   position: relative;
   display: block;
   width: 88px;
@@ -99,69 +101,69 @@
   pointer-events: none;
 }
 
+/* Small ear notches that stay inside the circle. */
 .tuft {
   z-index: 1;
-  top: 3%;
-  width: 18%;
-  height: 16%;
-  background: color-mix(in srgb, var(--color-bar) 72%, var(--color-lime));
-  clip-path: polygon(50% 0, 0 100%, 100% 100%);
+  top: 10%;
+  width: 10%;
+  height: 9%;
+  background: var(--orb-rim);
+  clip-path: polygon(50% 0, 100% 100%, 0 100%);
+  opacity: 0.5;
 }
 
-.tuftLeft { left: 16%; transform: rotate(-18deg); }
-.tuftRight { right: 16%; transform: rotate(18deg); }
+.tuftLeft { left: 21%; transform: rotate(-16deg); }
+.tuftRight { right: 21%; transform: rotate(16deg); }
 
+/* The socket is the eye's dark-lime rim; the paper eye sits inside it. */
 .socket {
   z-index: 1;
-  top: 22%;
-  width: 38%;
-  height: 38%;
+  top: 25%;
+  width: 36%;
+  height: 36%;
   border-radius: 50%;
-  background: radial-gradient(
-    circle at 50% 42%,
-    color-mix(in srgb, var(--color-bar) 42%, var(--color-lime)) 0%,
-    color-mix(in srgb, var(--color-bar) 82%, var(--color-lime)) 70%,
-    var(--color-bar) 100%
-  );
+  background: var(--orb-rim);
 }
 
-.leftEye { left: 10%; }
-.rightEye { right: 10%; }
+.leftEye { left: 12%; }
+.rightEye { right: 12%; }
 
 .eye {
   z-index: 1;
-  top: 14%;
-  left: 14%;
-  width: 72%;
-  height: 72%;
+  top: 8%;
+  left: 8%;
+  width: 84%;
+  height: 84%;
+  overflow: hidden;
   border-radius: 50%;
   background: var(--color-paper);
-  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--color-bar) 25%, transparent);
 }
 
 .pupil {
-  top: 16%;
-  left: 16%;
-  width: 68%;
-  height: 68%;
+  top: 22%;
+  left: 22%;
+  width: 56%;
+  height: 56%;
   border-radius: 50%;
-  background: radial-gradient(circle at 36% 32%, color-mix(in srgb, var(--color-paper) 32%, var(--color-bar)), var(--color-bar) 58%);
+  background: var(--orb-ink);
 }
 
 .catchlight {
-  top: 16%;
-  left: 18%;
-  width: 28%;
-  height: 28%;
+  top: 18%;
+  left: 20%;
+  width: 30%;
+  height: 30%;
   border-radius: 50%;
   background: var(--color-paper);
 }
 
+/* Flat lime lid with a thin lash line, so half-closed reads calm, not grumpy. */
 .lid {
   z-index: 2;
   inset: 0;
-  border-radius: 50%;
-  background: color-mix(in srgb, var(--color-lime) 78%, var(--color-bar));
+  border-radius: 0 0 50% 50% / 0 0 22% 22%;
+  background: var(--color-lime);
+  box-shadow: inset 0 -2px 0 var(--orb-rim);
   transform: scaleY(0);
   transform-origin: 50% 0%;
 }
@@ -170,8 +172,8 @@
   z-index: 2;
   top: 60%;
   left: 50%;
-  width: 22%;
-  height: 16%;
+  width: 14%;
+  height: 13%;
   transform: translateX(-50%);
 }
 
@@ -179,20 +181,23 @@
 .beakLower {
   left: 0;
   width: 100%;
-  height: 58%;
-  background: var(--orb-beak);
+  background: var(--orb-ink);
 }
 
 .beakUpper {
   top: 0;
-  clip-path: polygon(50% 100%, 0 8%, 100% 8%);
-  transform: translateY(calc(var(--beak) * -5px));
+  height: 72%;
+  border-radius: 2px;
+  clip-path: polygon(0 0, 100% 0, 50% 100%);
+  transform: translateY(calc(var(--beak) * -3px));
 }
 
 .beakLower {
   bottom: 0;
-  clip-path: polygon(50% 0, 8% 100%, 92% 100%);
-  transform: translateY(calc(var(--beak) * 7px));
+  height: 40%;
+  clip-path: polygon(20% 0, 80% 0, 50% 100%);
+  opacity: calc(var(--beak) * 1.4);
+  transform: translateY(calc(var(--beak) * 5px));
 }
 
 .eyes {
@@ -347,12 +352,12 @@ button:hover:not(:disabled) .orb[data-tracking="true"] .face {
 
 @keyframes remBeakUp {
   from { transform: translateY(0); }
-  to { transform: translateY(-5px); }
+  to { transform: translateY(-3px); }
 }
 
 @keyframes remBeakDown {
-  from { transform: translateY(0); }
-  to { transform: translateY(7px); }
+  from { opacity: 0; transform: translateY(0); }
+  to { opacity: 1; transform: translateY(5px); }
 }
 
 @keyframes remSpin {
