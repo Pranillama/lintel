@@ -15,6 +15,7 @@ import type * as bills_reset from "../bills/reset.js";
 import type * as bills_resume from "../bills/resume.js";
 import type * as crs_vendor from "../crs/vendor.js";
 import type * as engine_policy from "../engine/policy.js";
+import type * as http from "../http.js";
 import type * as intake_extract from "../intake/extract.js";
 import type * as lib_records from "../lib/records.js";
 import type * as match_commit from "../match/commit.js";
@@ -23,6 +24,7 @@ import type * as pipeline_investigate from "../pipeline/investigate.js";
 import type * as pipeline_process from "../pipeline/process.js";
 import type * as pipeline_voice from "../pipeline/voice.js";
 import type * as portfolio_admin from "../portfolio/admin.js";
+import type * as voice_tools from "../voice/tools.js";
 
 import type {
   ApiFromModules,
@@ -38,6 +40,7 @@ declare const fullApi: ApiFromModules<{
   "bills/resume": typeof bills_resume;
   "crs/vendor": typeof crs_vendor;
   "engine/policy": typeof engine_policy;
+  http: typeof http;
   "intake/extract": typeof intake_extract;
   "lib/records": typeof lib_records;
   "match/commit": typeof match_commit;
@@ -46,6 +49,7 @@ declare const fullApi: ApiFromModules<{
   "pipeline/process": typeof pipeline_process;
   "pipeline/voice": typeof pipeline_voice;
   "portfolio/admin": typeof portfolio_admin;
+  "voice/tools": typeof voice_tools;
 }>;
 
 /**
