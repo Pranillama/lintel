@@ -1,6 +1,6 @@
 # UI Context
 
-Owner: **Piyush**. One screen, the AP Command Center at `/`. No other routes for the demo. Judges stand at a shared, loud table for two minutes: everything that matters must be readable from a meter away without clicking.
+Owner: **Piyush**. One page at `/`, no other routes for the demo. It opens on the **receipt printer** (`ReceiptPrinter`): scrolling feeds the live AP tab out of a 3D thermal printer, printed from the same `listBills` data. The end of the tab offers "Open the AP desk ↓", and the **AP Command Center** sits directly below as a full-screen section (`#desk`). Pressing `J` anywhere scrolls to the desk and opens Test a bill; a skip link jumps straight to the desk. For the video's first frame (master-spec §7), record either the printer opening or the desk section. Judges stand at a shared, loud table for two minutes: everything that matters must be readable from a meter away without clicking.
 
 Data comes only from Convex (`listBills`, `getPortfolio`, `processBill`, `humanResume`, `replayOpening`). The UI never computes a status, a total, a percentage, or a why-sentence; it renders what `BillView` and `Totals` say. Until those functions are live, build against mock `BillView` objects in `src/components/__mocks__/` (clearly mock, never imported by `page.tsx` in the final build). The page is a client component under `ConvexProvider`.
 
@@ -106,4 +106,4 @@ As built:
 - `useConvexDesk.ts` is the only file that calls `useQuery` / `useMutation` / `useAction` (paths: `api.bills.queries.listBills`, `api.bills.queries.getPortfolio`, `api.pipeline.process.processBill` with `{ input: JSON }`, `api.pipeline.process.replayOpening` (an action), `api.bills.resume.humanResume`).
 - `CommandCenter` wires that hook into `DeskView`, which owns layout, tabs, selection, drawers, `J`/`Esc`, and the opening replay.
 - `__mocks__/mockDesk.ts` is a dev-only desk with the same shape that runs the real engine in the browser (no Convex). Never import it from `page.tsx`.
-- `CheckMark` renders check outcomes; `ReceiptPrinter` (scroll-driven printed tab) exists but is not mounted on `/`.
+- `CommandCenter` renders `Landing`: `ReceiptPrinter` on top, then `DeskView` in `#desk`. Both read one `useConvexDesk` result. `CheckMark` renders check outcomes.
