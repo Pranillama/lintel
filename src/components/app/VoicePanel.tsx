@@ -1,15 +1,17 @@
 "use client";
 
 /**
- * Browser voice on the bill page. Mic audio goes out as PCM, agent audio plays back,
+ * Browser voice, fixed in the corner. Mic audio goes out as PCM, agent audio plays back,
  * and audio_output_clear flushes playback (barge-in). The API key never reaches this file.
+ * `?voicePreview=pill|open` seeds a fake transcript in development only.
  */
 import { useRouter } from "next/navigation";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, useSyncExternalStore } from "react";
 import { useAction } from "convex/react";
 import { api } from "../../../convex/_generated/api";
-import { Button, CARD, ErrorLine, T } from "../desk/ui";
-import { WhoChip } from "./kit";
+import { reduceTranscriptOpen, transcriptPillVisible } from "@/voice/transcriptDock";
+import { ErrorLine, Icon, T } from "../desk/ui";
+import { RemOrb } from "./RemOrb";
 import {
   answerClientTool,
   applyTranscript,
@@ -35,6 +37,34 @@ const STATUS_WORD: Record<VoiceStatus, string> = {
   speaking: "Speaking",
 };
 
+const FOCUS = "outline-none focus-visible:ring-2 focus-visible:ring-paper focus-visible:ring-offset-2 focus-visible:ring-offset-bar";
+
+function voicePreview(): "pill" | "open" | null {
+  if (process.env.NODE_ENV === "production") return null;
+  const mode = new URLSearchParams(window.location.search).get("voicePreview");
+  return mode === "pill" || mode === "open" ? mode : null;
+}
+
+function subscribeVoicePreview(): () => void {
+  return () => {};
+}
+
+function noVoicePreview(): null {
+  return null;
+}
+
+/** Dev-only lines so the transcript card can be reviewed without a live Cartesia session. */
+const PREVIEW_LINES: TranscriptLine[] = [
+  { turn: 1, role: "user", text: "Why is this bill held?", pending: false },
+  { turn: 2, role: "assistant", text: "It is held because the amount is over the auto-pay limit.", pending: false },
+  { turn: 3, role: "user", text: "Who has to approve it?", pending: false },
+  { turn: 4, role: "assistant", text: "A person still has to approve it. I can't pay it.", pending: false },
+  { turn: 5, role: "user", text: "What did the check say?", pending: false },
+  { turn: 6, role: "assistant", text: "The amount is above the auto-pay limit, so the bill stays held.", pending: false },
+  { turn: 7, role: "user", text: "Can you approve it?", pending: false },
+  { turn: 8, role: "assistant", text: "No. A person approves, rejects, or pays. This is the newest line.", pending: false },
+];
+
 interface LiveCall {
   stop(): void;
 }
@@ -43,14 +73,56 @@ export function VoicePanel({ billId }: { billId: string }) {
   const startSession = useAction(api.pipeline.voice.startVoiceSession);
   const router = useRouter();
   const billIdRef = useRef(billId);
-  billIdRef.current = billId;
   const liveRef = useRef<LiveCall | null>(null);
   const [status, setStatus] = useState<VoiceStatus>("idle");
   const [lines, setLines] = useState<TranscriptLine[]>([]);
   const [problem, setProblem] = useState<string | null>(null);
   const [blocked, setBlocked] = useState(false);
+  const preview = useSyncExternalStore(subscribeVoicePreview, voicePreview, noVoicePreview);
+  const [sessionTranscriptOpen, setSessionTranscriptOpen] = useState(false);
+  const [previewClosed, setPreviewClosed] = useState(false);
+  const transcriptOpen = sessionTranscriptOpen || (preview === "open" && !previewClosed);
+  const shownLines = lines.length > 0 ? lines : preview ? PREVIEW_LINES : lines;
+  const closeRef = useRef<HTMLButtonElement>(null);
+  const pillRef = useRef<HTMLButtonElement>(null);
+  const talkRef = useRef<HTMLButtonElement>(null);
+  const listRef = useRef<HTMLOListElement>(null);
+  const transcriptWasOpen = useRef(false);
+
+  useEffect(() => {
+    billIdRef.current = billId;
+  }, [billId]);
 
   useEffect(() => () => liveRef.current?.stop(), []);
+
+  useEffect(() => {
+    if (!transcriptOpen) return;
+    const onKey = (event: KeyboardEvent) => {
+      if (event.key !== "Escape") return;
+      event.preventDefault();
+      setPreviewClosed(true);
+      setSessionTranscriptOpen((open) => reduceTranscriptOpen(open, "escape"));
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [transcriptOpen]);
+
+  useEffect(() => {
+    if (transcriptOpen) {
+      transcriptWasOpen.current = true;
+      closeRef.current?.focus();
+      return;
+    }
+    if (!transcriptWasOpen.current) return;
+    transcriptWasOpen.current = false;
+    (pillRef.current ?? talkRef.current)?.focus();
+  }, [transcriptOpen]);
+
+  useEffect(() => {
+    if (!transcriptOpen) return;
+    const list = listRef.current;
+    if (list) list.scrollTop = list.scrollHeight;
+  }, [transcriptOpen, shownLines]);
 
   function hangUp() {
     liveRef.current?.stop();
@@ -184,33 +256,87 @@ export function VoicePanel({ billId }: { billId: string }) {
     };
   }
 
+  const label = status === "idle" ? "Talk to Lintel" : "Hang up";
+  const showPill = transcriptPillVisible(transcriptOpen, status, shownLines.length);
+
+  function closeTranscript() {
+    setPreviewClosed(true);
+    setSessionTranscriptOpen((open) => reduceTranscriptOpen(open, "hide"));
+  }
+
   return (
-    <section className={`${CARD} flex flex-col gap-3`} aria-label="Talk to Lintel">
-      <div className="flex flex-wrap items-center gap-2">
-        <WhoChip who="CODE" />
-        <h2 className={`${T.body} font-semibold`}>Talk to Lintel</h2>
-        <span className={`${T.label} ml-auto text-muted`} aria-live="polite">{STATUS_WORD[status]}</span>
-      </div>
-      <p className={`${T.small} text-muted`}>Ask why this bill is held. Lintel can explain it. A person approves, rejects, or pays.</p>
-      {problem && <ErrorLine>{problem}</ErrorLine>}
-      <div>
-        {status === "idle" ? (
-          <Button kind="secondary" onClick={() => void talk()} disabled={blocked}>Talk to Lintel</Button>
-        ) : (
-          <Button kind="secondary" onClick={hangUp}>Hang up</Button>
-        )}
-      </div>
-      {lines.length > 0 && (
-        <ol className="flex max-h-48 flex-col gap-3 overflow-y-auto border-t border-white/[0.08] pt-3">
-          {lines.map((line) => (
-            <li key={line.turn}>
-              <span className={`${T.label} text-muted`}>{line.role === "assistant" ? "Lintel" : "You"}</span>
-              <p className={`${T.small} ${line.role === "assistant" ? "text-paper" : "text-muted"}`}>{line.text || (line.pending ? "…" : "")}</p>
-            </li>
-          ))}
-        </ol>
+    <div className="pointer-events-none fixed bottom-4 right-4 z-20 flex w-[min(360px,calc(100vw-1.5rem))] flex-col items-end gap-2 max-sm:bottom-3 max-sm:right-3">
+      {problem && (
+        <div className="pointer-events-auto max-w-full">
+          <ErrorLine>{problem}</ErrorLine>
+        </div>
       )}
-    </section>
+      {transcriptOpen && (
+        <section
+          id="voice-transcript"
+          role="dialog"
+          aria-label="Voice transcript"
+          className="pointer-events-auto flex max-h-[min(420px,60vh)] w-full flex-col gap-3 rounded-[16px] border border-white/[0.08] bg-card/70 p-4 shadow-[0_16px_48px_rgba(0,0,0,0.45)] backdrop-blur-md"
+        >
+          <div className="flex items-center gap-2">
+            <h2 className={`${T.label} text-muted`}>Transcript</h2>
+            <button
+              ref={closeRef}
+              type="button"
+              onClick={closeTranscript}
+              aria-label="Close transcript"
+              className={`ml-auto inline-flex size-10 cursor-pointer items-center justify-center rounded-full text-muted hover:text-paper ${FOCUS}`}
+            >
+              <Icon name="close" />
+            </button>
+          </div>
+          <p className={`${T.small} text-muted`}>Lintel can explain this bill. A person approves, rejects, or pays.</p>
+          <ol
+            ref={listRef}
+            tabIndex={0}
+            aria-label="Transcript lines"
+            className={`flex max-h-[min(240px,36vh)] flex-col gap-3 overflow-y-auto pr-1 ${FOCUS}`}
+          >
+            {shownLines.length === 0 && <li className={`${T.small} text-muted`}>Nothing said yet.</li>}
+            {shownLines.map((line) => (
+              <li key={line.turn}>
+                <span className={`${T.label} ${line.role === "assistant" ? "text-lime" : "text-muted"}`}>{line.role === "assistant" ? "Lintel" : "You"}</span>
+                <p className={`${T.small} ${line.role === "assistant" ? "text-paper" : "text-muted"}`}>{line.text || (line.pending ? "…" : "")}</p>
+              </li>
+            ))}
+          </ol>
+        </section>
+      )}
+      {showPill && (
+        <button
+          ref={pillRef}
+          type="button"
+          onClick={() => setSessionTranscriptOpen((open) => reduceTranscriptOpen(open, "show"))}
+          aria-label="Show transcript"
+          aria-controls="voice-transcript"
+          aria-expanded={false}
+          className={`pointer-events-auto inline-flex h-9 cursor-pointer items-center rounded-full border border-white/[0.08] bg-card/75 px-3 text-[13px] font-semibold text-paper shadow-[0_8px_24px_rgba(0,0,0,0.28)] backdrop-blur-md ${FOCUS}`}
+        >
+          Show transcript
+        </button>
+      )}
+      <div className="pointer-events-auto flex flex-col items-end gap-1">
+        <button
+          ref={talkRef}
+          type="button"
+          disabled={blocked}
+          aria-label={label}
+          onClick={() => { if (status === "idle") void talk(); else hangUp(); }}
+          className={`flex items-center gap-2 rounded-full py-1 pl-1 disabled:cursor-not-allowed disabled:opacity-40 ${FOCUS}`}
+        >
+          <span className="inline-flex h-10 items-center rounded-full px-4 text-[14px] font-semibold leading-5 text-paper shadow-[inset_0_0_0_1px_rgba(242,241,236,0.3)] max-sm:px-3 max-sm:text-[13px]">
+            {label}
+          </span>
+          <RemOrb state={status} />
+        </button>
+        <span className={`${T.label} text-muted`} role="status" aria-live="polite">{STATUS_WORD[status]}</span>
+      </div>
+    </div>
   );
 }
 

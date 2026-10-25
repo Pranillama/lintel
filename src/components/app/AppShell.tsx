@@ -10,6 +10,7 @@ import { useEffect, type ReactNode } from "react";
 import { Icon, Money, T } from "../desk/ui";
 import { useApp } from "./AppProvider";
 import { UploadDrawer } from "./UploadDrawer";
+import { VoicePanel } from "./VoicePanel";
 import { LiveStory } from "../story/LiveStory";
 
 const NAV = [
@@ -86,11 +87,17 @@ export function AppShell({ children }: { children: ReactNode }) {
           </Link>
         </div>
       </header>
-      <div className="flex min-h-0 flex-1 flex-col">{children}</div>
+      <div className="flex min-h-0 flex-1 flex-col pb-28">{children}</div>
+      <VoicePanel billId={billIdFromPath(path)} />
       {uploadOpen && <UploadDrawer onClose={() => setUploadOpen(false)} />}
       {story && <LiveStory key={story.key} run={story} onClose={closeStory} />}
     </div>
   );
+}
+
+function billIdFromPath(path: string): string {
+  const match = /^\/bills\/([^/]+)\/?$/.exec(path);
+  return match?.[1] ?? "";
 }
 
 function Total({ href, dot, label, value, count, strong = false }: { href: string; dot: string; label: string; value: number | undefined; count: number | undefined; strong?: boolean }) {

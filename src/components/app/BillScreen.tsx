@@ -18,7 +18,6 @@ import { storyKind, storyOf } from "../desk/story";
 import { CARD, ErrorLine, Icon, Money, shortDate, T } from "../desk/ui";
 import { useApp } from "./AppProvider";
 import { Empty, Loading, Screen, ScreenHeader, Stamp, WhoChip } from "./kit";
-import { VoicePanel } from "./VoicePanel";
 import { actorOf, confidenceWord, eventNote, eventTitle, type ActorKind } from "./plain";
 import { ReceiptTicket } from "./ReceiptTicket";
 
@@ -63,7 +62,6 @@ function BillDetail({ bill }: { bill: BillView }) {
 
         <section className="flex min-w-0 flex-col gap-4">
           <DecisionPanel bill={bill} />
-          <VoicePanel billId={bill.id} />
 
           <div role="tablist" aria-label="Bill details" className="flex gap-1 border-b border-white/[0.08]">
             <TabButton on={tab === "checked"} onClick={() => setTab("checked")}>What Lintel checked</TabButton>
