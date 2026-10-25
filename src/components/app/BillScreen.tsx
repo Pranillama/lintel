@@ -6,7 +6,7 @@
  * four plain-language tabs: what Lintel checked, what the bill says, what the AI prepared, history.
  */
 import Link from "next/link";
-import { useEffect, useState, type ReactNode } from "react";
+import { useState, type ReactNode } from "react";
 import type { BillView } from "@/types/bill";
 import { AgentDraft, ProviderTags } from "../desk/Agent";
 import { CHECK_LABEL } from "../desk/contract";
@@ -33,8 +33,10 @@ type Tab = "checked" | "says" | "ai" | "history";
 
 function BillDetail({ bill }: { bill: BillView }) {
   const { data, actions } = useApp();
-  const [tab, setTab] = useState<Tab>("checked");
-  useEffect(() => { setTab("checked"); }, [bill.id]);
+  // The chosen tab belongs to one bill; opening another bill starts back on "checked".
+  const [picked, setPicked] = useState<{ billId: string; tab: Tab }>({ billId: bill.id, tab: "checked" });
+  const tab: Tab = picked.billId === bill.id ? picked.tab : "checked";
+  const setTab = (next: Tab) => setPicked({ billId: bill.id, tab: next });
 
   const next = data.bills.filter((b) => b.status === "HELD" && b.id !== bill.id).at(-1);
   const portfolio = data.portfolio;
