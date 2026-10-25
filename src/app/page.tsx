@@ -1,9 +1,12 @@
-import { LiveDesk } from "@/components/desk/LiveDesk";
+import { redirect } from "next/navigation";
+import { Landing } from "@/components/app/Landing";
 
 type Search = Record<string, string | string[] | undefined>;
-const one = (v: string | string[] | undefined) => (Array.isArray(v) ? v[0] : v);
 
 export default async function Page({ searchParams }: { searchParams: Promise<Search> }) {
   const sp = await searchParams;
-  return <LiveDesk hints={{ bill: one(sp.bill), panel: one(sp.panel) }} />;
+  // Old desk links (`/?panel=test`, `/?bill=`) land in the inbox.
+  if (sp.panel === "test") redirect("/inbox?upload=1");
+  if (sp.bill) redirect("/inbox");
+  return <Landing />;
 }
