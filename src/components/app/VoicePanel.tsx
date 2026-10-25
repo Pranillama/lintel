@@ -326,7 +326,7 @@ export function VoicePanel({ billId }: { billId: string }) {
   return (
     <div className="pointer-events-none fixed bottom-4 right-4 z-20 flex w-[min(360px,calc(100vw-1.5rem))] flex-col items-end gap-2 max-sm:bottom-3 max-sm:right-3">
       {problem && (
-        <div className="pointer-events-auto max-w-full">
+        <div className="pointer-events-auto max-w-full rounded-[16px] border border-white/[0.08] bg-card/90 px-4 py-3 shadow-[0_16px_48px_rgba(0,0,0,0.45)] backdrop-blur-md">
           <ErrorLine>{problem}</ErrorLine>
         </div>
       )}
@@ -379,7 +379,7 @@ export function VoicePanel({ billId }: { billId: string }) {
           Show transcript
         </button>
       )}
-      {/* The mascot with its label right below it, and the status word under both. */}
+      {/* The mascot with its label right below it. The owl and the label already show the state on screen, so the status word is for screen readers only. */}
       <div className="pointer-events-auto flex flex-col items-center gap-1">
         <button
           ref={talkRef}
@@ -394,7 +394,7 @@ export function VoicePanel({ billId }: { billId: string }) {
             {label}
           </span>
         </button>
-        <span className={`${T.label} text-muted`} role="status" aria-live="polite">{STATUS_WORD[status]}</span>
+        <span className="sr-only" role="status" aria-live="polite">{STATUS_WORD[status]}</span>
       </div>
     </div>
   );
