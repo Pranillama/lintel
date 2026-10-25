@@ -1,12 +1,12 @@
 "use client";
 
 /**
- * One bill: the ticket prints on the left (Variation C) while the decision panel on the
- * right waits for the stamp. Verdict and the next action come first; the detail sits in
+ * One bill: the printed, stamped ticket on the left (Variation C, static) and the decision
+ * panel on the right. Verdict and the next action come first; the detail sits in
  * four plain-language tabs: what Lintel checked, what the bill says, what the AI prepared, history.
  */
 import Link from "next/link";
-import { useCallback, useState, type ReactNode } from "react";
+import { useState, type ReactNode } from "react";
 import type { BillView } from "@/types/bill";
 import { AgentDraft, ProviderTags } from "../desk/Agent";
 import { CHECK_LABEL } from "../desk/contract";
@@ -15,15 +15,11 @@ import { humanize, OutcomeChip, sortedChecks } from "../desk/Details";
 import { AssignControls, Evidence, evidenceTitle, PaymentLine } from "../desk/Evidence";
 import { sourceText } from "../desk/Pieces";
 import { storyKind, storyOf } from "../desk/story";
-import { Button, CARD, ErrorLine, Icon, Money, shortDate, T } from "../desk/ui";
+import { CARD, ErrorLine, Icon, Money, shortDate, T } from "../desk/ui";
 import { useApp } from "./AppProvider";
 import { Empty, Loading, Screen, ScreenHeader, Stamp, WhoChip } from "./kit";
 import { actorOf, confidenceWord, eventNote, eventTitle, type ActorKind } from "./plain";
 import { ReceiptTicket } from "./ReceiptTicket";
-import { LiveStory } from "../story/LiveStory";
-
-/** bill id -> the status its ticket was last printed with, this session. A new status prints again. */
-const printed = new Map<string, string>();
 
 export function BillScreen({ id }: { id: string }) {
   const { data } = useApp();
@@ -37,16 +33,7 @@ type Tab = "checked" | "says" | "ai" | "history";
 
 function BillDetail({ bill }: { bill: BillView }) {
   const { data, actions } = useApp();
-  const [reduced] = useState(() => typeof window !== "undefined" && window.matchMedia("(prefers-reduced-motion: reduce)").matches);
-  const [replay, setReplay] = useState(0);
-  const [progress, setProgress] = useState({ done: 0, total: 0, stamped: false });
   const [tab, setTab] = useState<Tab>("checked");
-  const [story, setStory] = useState(false);
-  const animate = !reduced && printed.get(bill.id) !== bill.status;
-  const ready = !animate || progress.stamped;
-
-  const onProgress = useCallback((done: number, total: number, stamped: boolean) => setProgress({ done, total, stamped }), []);
-  const onDone = useCallback(() => { printed.set(bill.id, bill.status); setProgress((p) => ({ ...p, stamped: true })); }, [bill.id, bill.status]);
 
   const next = data.bills.filter((b) => b.status === "HELD" && b.id !== bill.id).at(-1);
   const portfolio = data.portfolio;
@@ -67,21 +54,13 @@ function BillDetail({ bill }: { bill: BillView }) {
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-[minmax(0,500px)_minmax(0,1fr)]">
         <section className="flex flex-col gap-2 lg:sticky lg:top-[124px] lg:h-[calc(100vh-200px)] lg:min-h-[520px]">
           <div className="min-h-[480px] flex-1 lg:min-h-0">
-            <ReceiptTicket key={`${replay}-${bill.status}`} bill={bill} animate={animate} onProgress={onProgress} onDone={onDone} />
+            <ReceiptTicket bill={bill} />
           </div>
-          <div className="flex items-center gap-2 px-1">
-            <span className={`${T.label} flex-1 text-muted`}>Bill ticket · one line per step</span>
-            {animate && !progress.stamped ? (
-              <Button kind="text" onClick={onDone}>Skip</Button>
-            ) : (
-              <Button kind="text" disabled={reduced} title={reduced ? "Motion is reduced on this device" : undefined} onClick={() => { printed.delete(bill.id); setProgress({ done: 0, total: 0, stamped: false }); setReplay((r) => r + 1); }}>Print again</Button>
-            )}
-            <Button kind="text" aria-haspopup="dialog" onClick={() => setStory(true)}>Watch the full story</Button>
-          </div>
+          <span className={`${T.label} px-1 text-muted`}>Bill ticket · one line per step</span>
         </section>
 
         <section className="flex min-w-0 flex-col gap-4">
-          <DecisionPanel bill={bill} ready={ready} done={progress.done} total={progress.total} />
+          <DecisionPanel bill={bill} />
 
           <div role="tablist" aria-label="Bill details" className="flex gap-1 border-b border-white/[0.08]">
             <TabButton on={tab === "checked"} onClick={() => setTab("checked")}>What Lintel checked</TabButton>
@@ -110,7 +89,6 @@ function BillDetail({ bill }: { bill: BillView }) {
           </div>
         </section>
       </div>
-      {story && <LiveStory replay={bill} onClose={() => setStory(false)} />}
     </Screen>
   );
 }
@@ -136,22 +114,10 @@ function CardTitle({ who, title, sub }: { who: "AI" | "CODE" | "YOU"; title: str
 
 /* ---------- Decision: verdict and the next action first, sticky ---------- */
 
-function DecisionPanel({ bill, ready, done, total }: { bill: BillView; ready: boolean; done: number; total: number }) {
+function DecisionPanel({ bill }: { bill: BillView }) {
   const { data, actions } = useApp();
   const story = storyOf(bill);
   const held = bill.status === "HELD";
-  if (!ready) {
-    return (
-      <div className={`${CARD} lg:sticky lg:top-[124px] lg:z-10`} aria-live="polite">
-        <p className={`${T.label} text-muted`}>Printing… {done} of {total} checks</p>
-        <p className={`${T.title} mt-2 text-muted`}>Lintel is going through this bill.</p>
-        <p className={`${T.small} mt-1 text-muted`}>Rules run in order. The AI reads and drafts; it never decides.</p>
-        <div className="mt-4 h-1.5 overflow-hidden rounded-full bg-white/[0.08]">
-          <div className="h-full rounded-full bg-paper transition-[width] duration-200" style={{ width: `${total ? (done / total) * 100 : 0}%` }} />
-        </div>
-      </div>
-    );
-  }
   return (
     <div className={`${CARD} flex flex-col gap-3 lg:sticky lg:top-[124px] lg:z-10 ${held ? "shadow-[inset_0_0_0_2px_var(--color-lime)]" : ""}`} aria-live="polite">
       <CardTitle who={held ? "YOU" : "CODE"} title={held ? "What you need to do" : "Outcome"} />

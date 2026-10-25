@@ -23,26 +23,6 @@
   font-variant-numeric: tabular-nums;
 }
 
-/* Bill ticket motion (ReceiptTicket). Used only under motion-safe:, so reduced motion gets the final frame. */
-@keyframes stamp-drop {
-  0% { opacity: 0; rotate: -18deg; scale: 2.6; }
-  60% { opacity: 1; rotate: -9deg; scale: 0.96; }
-  100% { opacity: 1; rotate: -9deg; scale: 1; }
-}
-@keyframes paper-hit {
-  0%, 100% { transform: translateY(0); }
-  25% { transform: translateY(3px); }
-  60% { transform: translateY(-1px); }
-}
-@keyframes printer-buzz {
-  0%, 100% { transform: translateX(0); }
-  50% { transform: translateX(0.7px); }
-}
-@keyframes led-blink {
-  from { background-color: var(--color-lime); }
-  to { background-color: #3b4a1a; }
-}
-
 body {
   margin: 0;
   background: var(--color-bar);
