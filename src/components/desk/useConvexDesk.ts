@@ -2,9 +2,9 @@
 
 import { useMemo } from "react";
 import { useAction, useMutation, useQuery } from "convex/react";
-import { api } from "../../convex/_generated/api";
+import { api } from "../../../convex/_generated/api";
 import type { BillView, PortfolioResponse, ProcessBillInput } from "@/types/bill";
-import type { DeskActions, DeskData } from "./desk";
+import type { DeskActions, DeskData } from "./contract";
 
 /** The desk, backed by Convex. Subscribes to listBills and getPortfolio; never polls. */
 export function useConvexDesk(): { data: DeskData; actions: DeskActions } {

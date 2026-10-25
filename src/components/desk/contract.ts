@@ -2,22 +2,19 @@
  * The AP desk contract the screen is built on.
  *
  * `DeskData` and `DeskActions` mirror the Convex functions one to one
- * (listBills, getPortfolio, processBill, humanResume, replayOpening). CommandCenter
+ * (listBills, getPortfolio, processBill, humanResume, replayOpening). The page
  * gets them from Convex through `useConvexDesk`; tests and the preview use a mock
  * desk with the same shape. Components never call Convex directly and never compute
  * a status, a total, a percentage, or a why-sentence: they render what the desk gives them.
  */
 import type {
-  ActorFamily,
-} from "./ActorChip";
-import type {
+  Actor,
   ApproverRole,
   BillFormInput,
   BillStatus,
   BillView,
   CheckId,
   PortfolioResponse,
-  Property,
   ReasonCode,
   Totals,
   UploadedDocument,
@@ -51,76 +48,8 @@ export interface DeskActions {
   sendDraft(billId: string): Promise<BillView>;
 }
 
-export type DrawerKind = "judge" | "policy" | "rvs";
+export type DrawerKind = "policy" | "rvs";
 export type BlotterTab = "all" | "held" | "blocked" | "cleared" | "live";
-
-/* ---------- Component props (one owner per component) ---------- */
-
-export interface HeaderBarProps {
-  tab: BlotterTab;
-  onTab(tab: BlotterTab): void;
-  /** Bill counts per tab, from the bills list (not money). */
-  counts: Record<BlotterTab, number>;
-  seatsLine: string | undefined;
-  propertiesLoaded: number;
-  openDrawer: DrawerKind | null;
-  onOpenDrawer(kind: DrawerKind): void;
-}
-
-export interface TotalsBarProps {
-  totals: Totals | undefined;
-  auditChainIntact: boolean;
-  /** "Saturday intake" (the FEED label) or "Live desk". */
-  intakeLabel: string;
-  /** Count the numbers up when they land (opening replay). Off for reduced motion. */
-  countUp: boolean;
-  /** Replay in flight: hold the totals at $0.00 until it returns. */
-  replaying: boolean;
-}
-
-export interface BlotterProps {
-  /** Bills already filtered by the active tab, newest first. */
-  bills: BillView[];
-  tab: BlotterTab;
-  selectedId: string | null;
-  onSelect(billId: string): void;
-  intakeLabel: string;
-  onReplay(): void;
-  /** Replay in flight: show 4 reading skeletons. */
-  replaying: boolean;
-  /** Bill that just arrived from the judge drawer; flash it once. */
-  flashId: string | null;
-}
-
-export interface BillRowProps {
-  bill: BillView;
-  selected: boolean;
-  onSelect(billId: string): void;
-  flash: boolean;
-  /** Position in the opening reveal, for the 250 ms stagger. */
-  revealIndex: number;
-}
-
-export interface DetailPaneProps {
-  /** Selected bill, or undefined when nothing is selected yet. */
-  bill: BillView | undefined;
-  properties: Property[];
-  actions: DeskActions;
-  /** From listBills.audit_chain_intact, for the audit footer. */
-  auditChainIntact: boolean;
-}
-
-export interface JudgeDrawerProps {
-  onClose(): void;
-  actions: DeskActions;
-  /** Called with the new bill so CommandCenter can select and flash it. */
-  onCreated(bill: BillView): void;
-}
-
-export interface PortfolioDrawerProps {
-  onClose(): void;
-  portfolio: PortfolioResponse | undefined;
-}
 
 /* ---------- Shared labels (display only, never logic) ---------- */
 
@@ -170,7 +99,15 @@ export const REASON_LABEL: Record<ReasonCode, string> = {
   UTILITY_NOT_ACCOUNT_MATCHED: "Utility not matched by account",
 };
 
-export type { ActorFamily };
+export type ActorFamily = "AI" | "CODE" | "HUMAN" | "CRS";
+
+/** Groups audit actors the way the tagline reads: AI reads · CODE decides · HUMAN owns. */
+export function actorFamily(actor: Actor): ActorFamily {
+  if (actor === "AI_EXTRACTION" || actor === "AI_INVESTIGATOR") return "AI";
+  if (actor === "HUMAN_INPUT" || actor === "HUMAN_OPERATOR" || actor === "HUMAN_ALIAS") return "HUMAN";
+  if (actor === "CRS_SANDBOX") return "CRS";
+  return "CODE"; // DETERMINISTIC_RULE, PAYMENT_ROUTER, SYSTEM_FEED
+}
 
 /** Message to show inline for a failed desk action. ConvexError carries its text in `data`. */
 export function errorMessage(err: unknown): string {
