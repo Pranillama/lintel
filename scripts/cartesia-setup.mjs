@@ -1,21 +1,18 @@
 #!/usr/bin/env node
 /**
- * Create or update the Lintel Reviewer agent and its three read-only webhook tools.
- *
- * Does not buy a phone number. Attaching one is optional:
- *   node --experimental-strip-types scripts/cartesia-setup.mjs --phone
+ * Create or update the Lintel Reviewer agent, its read-only webhook tools, and its browser client tools.
+ * There is no phone-number step.
  *
  * Dry run prints payloads and does not call Cartesia:
  *   node --experimental-strip-types scripts/cartesia-setup.mjs --dry-run
  *
  * Live env: CARTESIA_API_KEY, CONVEX_SITE_URL, LINTEL_VOICE_TOOL_SECRET.
  * Optional: CARTESIA_AGENT_MODEL, CARTESIA_VOICE_ID, CARTESIA_REVIEWER_AGENT_ID.
- * --phone also needs CARTESIA_PHONE_NUMBER_ID.
  *
  * API notes (docs read Oct 25, 2026; not called from this machine):
  * - Agents and tools: https://api.cartesia.ai/v1/... with Authorization: Bearer and Cartesia-Version: 2026-08-14.
- * - Phone list and update have no /v1 prefix: PATCH /agents/phone-numbers/{id}.
- *   One phone guide curl sends X-API-Key. The OpenAPI scheme is Bearer. This script sends Bearer.
+ * - Browser token: POST https://api.cartesia.ai/access-token (no /v1). The Convex action mints it.
+ * - Browser socket: wss://api.cartesia.ai/v1/agents/websocket/{agent_id}?cartesia_version=2026-08-14&access_token=
  * - PATCH /v1/agents/tools/{id} is described on the webhook tools page. A separate Update Tool page was not opened.
  * - GET /v1/agents/models response wrapper was not fully specified. Live mode accepts a bare array or { data: [] }.
  */
@@ -25,6 +22,7 @@ import {
   PREFERRED_MODEL_ID,
   REVIEWER_NAME,
   buildReviewerAgentBody,
+  buildReviewerClientTools,
   buildReviewerTools,
 } from "../src/voice/reviewerAgent.ts";
 
@@ -33,19 +31,17 @@ const API = "https://api.cartesia.ai";
 
 const args = new Set(process.argv.slice(2));
 for (const arg of args) {
-  if (arg !== "--dry-run" && arg !== "--phone") {
+  if (arg !== "--dry-run") {
     console.error(`Unknown argument ${arg}`);
     process.exit(1);
   }
 }
 const dryRun = args.has("--dry-run");
-const attachPhone = args.has("--phone");
 
 const siteUrl = (process.env.CONVEX_SITE_URL ?? "").replace(/\/+$/, "") || "https://YOUR_DEPLOYMENT.convex.site";
 const secret = process.env.LINTEL_VOICE_TOOL_SECRET ?? "";
 const modelId = process.env.CARTESIA_AGENT_MODEL || PREFERRED_MODEL_ID;
 const voiceId = process.env.CARTESIA_VOICE_ID || DEFAULT_VOICE_ID;
-const phoneNumberId = process.env.CARTESIA_PHONE_NUMBER_ID ?? "";
 
 function fail(message) {
   console.error(message);
@@ -67,38 +63,27 @@ function redact(value, hidden) {
   return value;
 }
 
-function phonePayload(agentId) {
-  return {
-    method: "PATCH",
-    path: `/agents/phone-numbers/${phoneNumberId || "<CARTESIA_PHONE_NUMBER_ID>"}`,
-    note: "No /v1 prefix. This path was taken from the phone-number OpenAPI page. The script does not buy a number.",
-    body: { agent_id: agentId },
-  };
-}
-
 if (dryRun) {
   const tools = buildReviewerTools({ siteUrl, secret: secret || "<LINTEL_VOICE_TOOL_SECRET>" });
+  const clientTools = buildReviewerClientTools();
   const agent = buildReviewerAgentBody({
-    toolIds: tools.map((tool) => `<${tool.name} tool id>`),
+    toolIds: [...tools, ...clientTools].map((tool) => `<${tool.name} tool id>`),
     modelId,
     voiceId,
   });
   const payload = {
     dry_run: true,
-    phone: attachPhone,
     site_url: siteUrl,
     notes: [
       "No Cartesia call was made.",
       "secret_value is redacted.",
-      attachPhone
-        ? "Phone attach included because --phone was set. Buy the number yourself, then set CARTESIA_PHONE_NUMBER_ID."
-        : "Phone attach skipped. Creating the agent does not need a number. Pass --phone later to attach one.",
+      "No phone number is attached. Talk to the agent from the bill page.",
       `Model id is ${modelId}. The live catalog was not queried. Set CARTESIA_AGENT_MODEL or let a live run call GET /v1/agents/models.`,
       `Voice id is ${voiceId}. Not confirmed with GET /voices.`,
     ],
     tools: redact(tools, secret),
+    client_tools: clientTools,
     agent: redact(agent, secret),
-    phone_attach: attachPhone ? phonePayload("<agent id>") : null,
   };
   console.log(JSON.stringify(payload, null, 2));
   process.exit(0);
@@ -118,9 +103,6 @@ if (origin.protocol !== "https:" || origin.username || origin.password) {
 }
 if (siteUrl === "https://YOUR_DEPLOYMENT.convex.site") {
   fail("Set CONVEX_SITE_URL to your deployment's .convex.site origin.");
-}
-if (attachPhone && !phoneNumberId) {
-  fail("Pass --phone only after you buy a number. Set CARTESIA_PHONE_NUMBER_ID. This script does not buy one.");
 }
 
 async function cartesia(method, path, body) {
@@ -177,11 +159,14 @@ async function chooseModel() {
   return picked;
 }
 
-const tools = buildReviewerTools({ siteUrl: origin.origin, secret });
-const existingTools = await listAll("/v1/agents/tools", { type: "webhook" });
+const tools = [
+  ...buildReviewerTools({ siteUrl: origin.origin, secret }),
+  ...buildReviewerClientTools(),
+];
+const existingTools = await listAll("/v1/agents/tools", {});
 const toolIds = [];
 for (const tool of tools) {
-  const found = existingTools.find((row) => row && row.name === tool.name && row.type === "webhook");
+  const found = existingTools.find((row) => row && row.name === tool.name && row.type === tool.type);
   if (found && typeof found.id === "string") {
     const updated = await cartesia("PATCH", `/v1/agents/tools/${found.id}`, tool);
     toolIds.push(typeof updated.id === "string" ? updated.id : found.id);
@@ -218,20 +203,9 @@ if (agentId) {
   console.error(`Created agent ${agentId}`);
 }
 
-let phone = null;
-if (attachPhone) {
-  phone = await cartesia("PATCH", `/agents/phone-numbers/${encodeURIComponent(phoneNumberId)}`, { agent_id: agentId });
-  console.error(`Attached phone number ${phoneNumberId}`);
-} else {
-  console.error("Phone attach skipped. Pass --phone with CARTESIA_PHONE_NUMBER_ID when you have a number.");
-}
-
 console.log(JSON.stringify({
   agent_id: agentId,
   tool_ids: toolIds,
   model_id: chosenModel,
   voice_id: voiceId,
-  phone_attached: attachPhone,
-  phone_number_id: attachPhone ? phoneNumberId : null,
-  phone,
 }, null, 2));

@@ -1,6 +1,6 @@
 /**
  * Lintel Reviewer, Cartesia Managed Agent.
- * Read-only tools only. Phone attach is optional and lives in the setup script.
+ * Read-only tools only. The reviewer is browser-only. There is no phone attach.
  *
  * Unverified against a live account on Oct 25, 2026 (no API key on this machine):
  * - Preferred model id "claude-sonnet-5". The models guide example that day was "gpt-5.4-mini".
@@ -49,6 +49,8 @@ You cannot approve, reject, assign, process, or pay anything. You have no tool t
 Only state facts a tool returned. For any dollar amount, percent, date, invoice number, or bill id, use the tool's words exactly. If a tool did not return it, say you do not know. Do not invent a number.
 
 # Which tool
+- get_selected_bill when the caller says "this bill" or "the one on screen". It returns only the bill id. Then call get_bill_explanation.
+- show_bill when they ask to open a different bill. It only changes which bill is on screen.
 - list_open_bills when the caller asks what needs a person, or what is held or blocked.
 - find_bills when the caller names a vendor, a property, or a bill id. Pass that text as q.
 - get_bill_explanation once you have a bill id and the caller wants the reason. Call it before you explain one bill.
@@ -163,6 +165,50 @@ export interface ReviewerAgentBody {
       end_call: { description: string; pre_tool_speech: "force" };
     };
   };
+}
+
+export interface ClientToolBody {
+  type: "client";
+  name: "get_selected_bill" | "show_bill";
+  description: string;
+  pre_tool_speech: "off";
+  execution_mode: "immediate";
+  expects_response: true;
+  parameters: {
+    type: "object";
+    properties: Record<string, { type: "string"; description: string }>;
+    required?: string[];
+  };
+}
+
+/** Browser tools. They read the open bill or change the page. They do not change a bill. */
+export function buildReviewerClientTools(): ClientToolBody[] {
+  return [
+    {
+      type: "client",
+      name: "get_selected_bill",
+      description: "Return the bill id open on the reviewer's screen. Use it when they say this bill. Then call get_bill_explanation. Does not approve, reject, or pay.",
+      pre_tool_speech: "off",
+      execution_mode: "immediate",
+      expects_response: true,
+      parameters: { type: "object", properties: {} },
+    },
+    {
+      type: "client",
+      name: "show_bill",
+      description: "Open a bill on the reviewer's screen. Pass the bill id. This only navigates. Does not approve, reject, or pay.",
+      pre_tool_speech: "off",
+      execution_mode: "immediate",
+      expects_response: true,
+      parameters: {
+        type: "object",
+        properties: {
+          bill_id: { type: "string", description: "Bill id to open." },
+        },
+        required: ["bill_id"],
+      },
+    },
+  ];
 }
 
 export function buildReviewerAgentBody(input: { toolIds: string[]; modelId: string; voiceId: string }): ReviewerAgentBody {

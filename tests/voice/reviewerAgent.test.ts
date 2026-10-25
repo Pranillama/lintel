@@ -3,6 +3,7 @@ import {
   REVIEWER_INITIAL_MESSAGE,
   REVIEWER_INSTRUCTIONS,
   buildReviewerAgentBody,
+  buildReviewerClientTools,
   buildReviewerTools,
 } from "@/voice/reviewerAgent";
 
@@ -21,6 +22,16 @@ describe("Lintel Reviewer agent", () => {
     expect(tools.every((tool) => tool.api_schema.authentication.token.secret_value === "desk-secret")).toBe(true);
     const names = tools.map((tool) => tool.name).join(" ");
     expect(names).not.toMatch(/approve|reject|assign|process|pay/);
+  });
+
+  it("adds two browser tools that only read or navigate", () => {
+    const client = buildReviewerClientTools();
+    expect(client.map((tool) => tool.name)).toEqual(["get_selected_bill", "show_bill"]);
+    expect(client.every((tool) => tool.type === "client" && tool.expects_response)).toBe(true);
+    expect(client[1].parameters.required).toEqual(["bill_id"]);
+    expect(client.map((tool) => tool.name).join(" ")).not.toMatch(/approve|reject|assign|process|pay/);
+    expect(REVIEWER_INSTRUCTIONS).toContain("get_selected_bill");
+    expect(REVIEWER_INSTRUCTIONS).toContain("show_bill");
   });
 
   it("tells the agent it cannot move money", () => {
