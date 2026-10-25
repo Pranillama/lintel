@@ -21,6 +21,7 @@ import type * as match_commit from "../match/commit.js";
 import type * as payments_settle from "../payments/settle.js";
 import type * as pipeline_investigate from "../pipeline/investigate.js";
 import type * as pipeline_process from "../pipeline/process.js";
+import type * as pipeline_voice from "../pipeline/voice.js";
 import type * as portfolio_admin from "../portfolio/admin.js";
 
 import type {
@@ -43,6 +44,7 @@ declare const fullApi: ApiFromModules<{
   "payments/settle": typeof payments_settle;
   "pipeline/investigate": typeof pipeline_investigate;
   "pipeline/process": typeof pipeline_process;
+  "pipeline/voice": typeof pipeline_voice;
   "portfolio/admin": typeof portfolio_admin;
 }>;
 
