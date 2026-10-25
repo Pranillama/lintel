@@ -54,7 +54,7 @@ export function MatchAssignCards({ bill, properties, actions }: { bill: BillView
 
   return (
     <>
-      <section className="card" aria-label="Address on the bill">
+      <section className="card overflow-y-auto" aria-label="Address on the bill">
         <p className="text-[14px] text-muted">On the bill</p>
         <p className="flex flex-wrap items-center gap-x-3 gap-y-1 text-[clamp(28px,3.2vw,44px)] font-light leading-tight tracking-tight">
           <span className="min-w-0 break-words">{street}</span>
@@ -131,7 +131,7 @@ export function LearnedAddress({ match, propertyName }: { match: MatchResult; pr
         </Chip>
       </div>
       {match.address_key && (
-        <p className="truncate text-[clamp(26px,2.8vw,38px)] font-light leading-tight tracking-tight" title={match.address_key}>
+        <p className="truncate text-[clamp(26px,2.8vw,38px)] font-light leading-[1.35] tracking-tight" title={match.address_key}>
           {match.address_key}
         </p>
       )}

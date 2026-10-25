@@ -91,10 +91,13 @@ function DecisionCard({
   toggleLabel?: string;
 }) {
   return (
-    <section className={`card card-light ${wide ? "col-span-2" : ""}`} aria-label="Decision">
+    <section className={`card card-light gap-2.5 py-5 ${wide ? "col-span-2" : ""}`} aria-label="Decision">
       <div className="flex items-start justify-between gap-4">
         <div className="min-w-0">
-          <h2 className="card-title truncate" title={bill.vendor_name ?? undefined}>{bill.vendor_name ?? "Unknown vendor"}</h2>
+          <div className="flex min-w-0 items-center gap-2.5">
+            <h2 className="card-title truncate" title={bill.vendor_name ?? undefined}>{bill.vendor_name ?? "Unknown vendor"}</h2>
+            <StatusChip status={bill.status} className="shrink-0" />
+          </div>
           <p className="mt-1 flex flex-wrap items-center gap-x-1.5 text-[13px] text-bar/60">
             <span>{bill.property_name ?? "Unmatched"}</span>
             <span aria-hidden>·</span>
@@ -104,12 +107,9 @@ function DecisionCard({
             )}
           </p>
         </div>
-        <div className="flex shrink-0 flex-col items-end gap-1.5">
-          <Money value={bill.amount} struck={bill.status === "BLOCKED"} className="text-[34px] font-light leading-none" />
-          <StatusChip status={bill.status} />
-        </div>
+        <Money value={bill.amount} struck={bill.status === "BLOCKED"} className="shrink-0 text-[28px] font-light leading-none min-[1400px]:text-[34px]" />
       </div>
-      <p className={`min-h-0 flex-1 overflow-y-auto leading-snug ${wide ? "text-[18px]" : "text-[17px]"}`}>{bill.decision.why}</p>
+      <p className={`min-h-0 flex-1 overflow-y-auto leading-[1.32] ${wide ? "text-[18px]" : "text-[16px] min-[1400px]:text-[17px]"}`}>{bill.decision.why}</p>
       <div className="flex items-end justify-between gap-4">
         <div className="min-w-0 flex-1">
           <ActionBar bill={bill} actions={actions} />

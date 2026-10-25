@@ -45,6 +45,7 @@ export function ActionBar({ bill, actions }: { bill: BillView; actions: DeskActi
 
 function HeldActions({ bill, actions }: { bill: BillView; actions: DeskActions }) {
   const [note, setNote] = useState("");
+  const [noteOpen, setNoteOpen] = useState(false);
   const [busy, setBusy] = useState<"approve" | "reject" | null>(null);
   const [error, setError] = useState<string | null>(null);
 
@@ -67,7 +68,7 @@ function HeldActions({ bill, actions }: { bill: BillView; actions: DeskActions }
 
   return (
     <div className="flex flex-col gap-1.5">
-      <div className="flex flex-wrap items-center gap-2.5">
+      <div className="flex items-center gap-2.5">
         <button
           type="button"
           className="btn btn-dark px-5 py-2.5 text-[14px]"
@@ -84,18 +85,28 @@ function HeldActions({ bill, actions }: { bill: BillView; actions: DeskActions }
         >
           {busy === "reject" ? "Rejecting…" : "Reject"}
         </button>
-        <label className="min-w-[110px] flex-1">
-          <span className="sr-only">Note (optional)</span>
+        {!noteOpen && (
+          <button type="button" className="focus-ring rounded-full px-3 py-2 text-[13px] font-medium text-bar/60 hover:text-bar" onClick={() => setNoteOpen(true)}>
+            ＋ Note
+          </button>
+        )}
+      </div>
+      {noteOpen && (
+        <label className="block">
+          <span className="sr-only">Decision note (optional)</span>
           <input
+            id={`note-${bill.id}`}
+            autoFocus
             value={note}
             onChange={(e) => setNote(e.target.value)}
-            placeholder="Note (optional)"
+            onKeyDown={(e) => { if (e.key === "Escape" && !note) setNoteOpen(false); }}
+            placeholder="Decision note (optional)"
             maxLength={280}
             disabled={busy !== null}
-            className="focus-ring w-full rounded-full bg-bar/[0.06] px-4 py-2.5 text-[13px] placeholder:text-muted"
+            className="focus-ring w-full rounded-full bg-bar/[0.06] px-4 py-2 text-[13px] placeholder:text-muted"
           />
         </label>
-      </div>
+      )}
       {helper && <p title={helper} className="truncate text-[12px] text-muted">{helper}</p>}
       <p aria-live="polite" className="text-[12px] font-semibold empty:hidden">{error}</p>
     </div>

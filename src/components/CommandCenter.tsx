@@ -109,7 +109,7 @@ export function DeskView({ data, actions, autoReplay = true }: { data: DeskData;
   };
 
   return (
-    <main className="flex h-screen min-h-[760px] flex-col gap-[22px] overflow-hidden px-9 py-7">
+    <main className="flex h-screen min-h-[740px] flex-col gap-[22px] overflow-hidden px-9 py-7 [@media(max-height:820px)]:gap-4 [@media(max-height:820px)]:py-5">
       <HeaderBar
         tab={tab}
         onTab={setTab}

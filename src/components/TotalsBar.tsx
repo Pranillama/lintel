@@ -75,11 +75,11 @@ export function TotalsBar({ totals, auditChainIntact, intakeLabel, countUp }: To
 
   return (
     <section aria-label="Totals" className="flex items-end gap-x-12 pl-7">
-      <h1 className="w-min flex-none text-[50px] font-medium leading-[1] tracking-[-0.01em]">{intakeLabel}</h1>
+      <h1 className="w-min flex-none text-[50px] font-medium [@media(max-height:820px)]:text-[42px] leading-[1] tracking-[-0.01em]">{intakeLabel}</h1>
       <div className="flex flex-none flex-col gap-1">
         <span className="text-[15px]">Needs you</span>
         <div className="flex items-center gap-4">
-          <span className={`text-[66px] font-light leading-none tracking-[-0.02em] tabular-nums ${totals ? "text-lime" : "text-muted"}`}>
+          <span className={`text-[66px] font-light leading-none [@media(max-height:820px)]:text-[56px] tracking-[-0.02em] tabular-nums ${totals ? "text-lime" : "text-muted"}`}>
             {formatUsd(shown.held).replace("$", "")}
           </span>
           <span className="rounded-full bg-raised px-3 py-1.5 text-[12px] font-semibold text-muted">USD</span>
